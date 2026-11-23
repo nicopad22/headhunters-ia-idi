@@ -1,0 +1,94 @@
+{
+  "units": "mm",
+  "board": {
+    "width": 500,
+    "depth": 500,
+    "base_mdf_thickness": 5.5,
+    "corner_riser_height": 15.0,
+    "under_board_clearance": 15.0,
+    "room_wall_height": 45,
+    "total_height_with_risers_and_walls": 65.5,
+    "top_acrylic_thickness_min": 2.0,
+    "top_acrylic_thickness_max": 3.0
+  },
+  "power": {
+    "type": "ultra_slim_powerbank_10000mah",
+    "output_port": "USB-A_5V_to_ESP32_USB-C",
+    "thickness": 12.0,
+    "approx_length": 150.0,
+    "approx_width": 74.0,
+    "mount_location": "underside_near_outer_edge_away_from_rc522",
+    "max_adhesive_or_velcro_thickness": 1.5,
+    "min_table_air_gap": 1.5
+  },
+  "console_box": {
+    "external_width": 120,
+    "external_depth": 120,
+    "max_external_height": 30,
+    "wall_thickness": 3.0,
+    "internal_width": 114,
+    "internal_depth": 114,
+    "lid_acrylic_thickness": 2.5,
+    "base_thickness": 2.5,
+    "internal_clearance_height": 25.0,
+    "usb_bottom_passthrough": {
+      "surface": "bottom_mdf_base",
+      "route": "down_through_mdf_to_underboard_powerbank",
+      "notes": "Pre-cut hole under ESP-32D USB-C port; replaces side-wall slot"
+    }
+  },
+  "components": {
+    "esp32d": {
+      "width": 55.0,
+      "depth": 28.0,
+      "bare_height": 6.0,
+      "position_x": 5.0,
+      "position_y": 50.0,
+      "mount": "floor_flat_no_breadboard"
+    },
+    "rc522": {
+      "width": 40.0,
+      "depth": 60.0,
+      "height_with_90deg_pins": 4.0,
+      "position_x": 70.0,
+      "position_y": 10.0,
+      "mount": "under_acrylic_lid_metal_free_below"
+    },
+    "oled_1_3_sh1106": {
+      "pcb_width": 35.4,
+      "pcb_depth": 33.5,
+      "pcb_height": 4.5,
+      "active_window_width": 29.42,
+      "active_window_height": 14.7,
+      "recommended_cutout_width": 30.0,
+      "recommended_cutout_height": 15.5,
+      "position_x": 10.0,
+      "position_y": 10.0
+    },
+    "buttons": {
+      "count": 5,
+      "labels": ["P1", "P2", "P3", "BACK", "COBRAR"],
+      "row_center_y": 98.0,
+      "pitch_x": 21.0,
+      "centers_x": [18.0, 39.0, 60.0, 81.0, 102.0]
+    },
+    "buzzer_passive": {
+      "diameter": 12.0,
+      "height": 9.5,
+      "center_x": 56.0,
+      "center_y": 22.0,
+      "sound_hole_diameter": 3.0
+    }
+  },
+  "cards": {
+    "total_active_nfc_cards": 50,
+    "breakdown": { "candidates": 24, "insights": 8, "mystery": 18 },
+    "pvc_cr80_width": 85.6,
+    "pvc_cr80_height": 54.0,
+    "pvc_cr80_thickness": 0.8,
+    "recommended_sticker_width": 84.0,
+    "recommended_sticker_height": 52.0,
+    "legacy_pdf_poker_width": 63.0,
+    "legacy_pdf_poker_height": 88.0
+  }
+}
