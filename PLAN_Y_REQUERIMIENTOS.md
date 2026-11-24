@@ -1,5 +1,7 @@
 # Planificación, Requerimientos y Especificación Final — Headhunters en la era de la IA (IDI1015)
 
+> **Nota (2026-11-24):** las reglas de juego de este documento quedaron reemplazadas por los PDFs de [`data/Updated game data/`](./data/Updated%20game%20data) (startups NotCow / Fintubal / Ziptedi, rentabilidad inicial 2, cobro $100 × nivel, fin por última ronda al completar 5 cargos, nuevo mazo Misterio). Las 8 tarjetas de ocupación (Insight, $50) se mantienen. `data/game_data.json` y el firmware siguen esas reglas. Las secciones de hardware y BOM siguen vigentes.
+
 Documento maestro actualizado con las decisiones definitivas de hardware, economía digital, directivas de reimpresión y comparación de pantallas económicas para la consola **ESP32 + NFC + 5 botones**.
 
 ---

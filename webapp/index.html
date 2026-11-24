@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1F2A2E">
+  <title>Etiquetar Tarjetas NFC</title>
+  <meta name="description" content="Escanea y etiqueta las 50 tarjetas NFC (24 postulantes + 8 ocupaciones + 18 Misterio) de Headhunters en la era de la IA con el NFC del teléfono.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%232F7F7B%22/%3E%3Cpath d=%22M10 11a8 8 0 0 1 0 10M15 8a12 12 0 0 1 0 16M20 5a16 16 0 0 1 0 22%22 stroke=%22white%22 stroke-width=%222.5%22 fill=%22none%22 stroke-linecap=%22round%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-row">
+      <div>
+        <p class="eyebrow">Headhunters · IDI1015</p>
+        <h1>Etiquetar tarjetas</h1>
+      </div>
+      <div class="count" id="count">0/50</div>
+    </div>
+    <div class="progress" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+  </header>
+
+  <section class="nfc-banner" id="nfc-banner" data-state="idle">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="nfc-text" id="nfc-text">Lector NFC apagado</span>
+    <button class="btn btn-small" id="nfc-start" type="button">Activar lector</button>
+  </section>
+
+  <main>
+    <!-- LABEL VIEW -->
+    <section class="view" id="view-label" data-active="true">
+      <div class="mode-toggle" role="radiogroup" aria-label="Qué tarjetas recorrer">
+        <button type="button" role="radio" data-mode="missing" aria-checked="true">Solo faltantes</button>
+        <button type="button" role="radio" data-mode="all" aria-checked="false">Todas</button>
+      </div>
+
+      <article class="card" id="card">
+        <div class="card-stripe" id="card-stripe"></div>
+        <div class="card-head">
+          <span class="code" id="card-code">C01</span>
+          <span class="kind" id="card-kind">Postulante</span>
+          <span class="pos" id="card-pos">1 de 50</span>
+        </div>
+        <h2 class="card-title" id="card-title">—</h2>
+        <p class="card-sub" id="card-sub"></p>
+        <p class="card-detail" id="card-detail"></p>
+        <div class="uid-box" id="uid-box" data-assigned="false">
+          <span class="uid-label" id="uid-label">Acerca esta tarjeta al teléfono</span>
+          <span class="uid-value" id="uid-value"></span>
+        </div>
+      </article>
+
+      <div class="nav-row">
+        <button class="btn" id="btn-prev" type="button">‹ Anterior</button>
+        <button class="btn" id="btn-next" type="button">Siguiente ›</button>
+      </div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="btn-clear" type="button">Borrar UID</button>
+        <button class="btn btn-ghost" id="btn-manual" type="button">Ingresar a mano</button>
+      </div>
+      <p class="hint">Tras cada escaneo se guarda y pasa sola a la siguiente. Todo queda guardado en este teléfono aunque cierres la página.</p>
+    </section>
+
+    <!-- TEST VIEW -->
+    <section class="view" id="view-test">
+      <h2 class="view-title">Probar tarjeta</h2>
+      <p class="hint">Acerca cualquier tarjeta para ver qué carta es. Úsalo primero con una tarjeta para confirmar que tu teléfono la puede leer.</p>
+      <article class="card card-test" id="test-result">
+        <p class="test-empty">Esperando una tarjeta…</p>
+      </article>
+    </section>
+
+    <!-- LIST VIEW -->
+    <section class="view" id="view-list">
+      <h2 class="view-title" id="list-title">Las 50 tarjetas</h2>
+      <p class="hint">Toca una para ir a etiquetarla.</p>
+      <div id="list"></div>
+    </section>
+
+    <!-- EXPORT VIEW -->
+    <section class="view" id="view-export">
+      <h2 class="view-title">Exportar</h2>
+      <p class="hint" id="export-summary"></p>
+      <div class="stack">
+        <button class="btn btn-primary" id="btn-download" type="button">Descargar JSON</button>
+        <button class="btn" id="btn-share" type="button" hidden>Compartir archivo…</button>
+        <button class="btn" id="btn-copy" type="button">Copiar JSON</button>
+      </div>
+      <div class="howto">
+        <h3>En el computador</h3>
+        <pre><code>python3.12 scripts/import_uids.py ~/Descargas/headhunters_nfc_uids.json
+cd firmware &amp;&amp; ./run_firmware.sh</code></pre>
+      </div>
+      <h3 class="section-label">Respaldo</h3>
+      <div class="stack">
+        <label class="btn file-btn">Importar un JSON exportado<input type="file" id="file-import" accept="application/json,.json"></label>
+        <button class="btn btn-danger" id="btn-reset" type="button">Borrar todo</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Secciones">
+    <button type="button" data-view="label" aria-current="page">Etiquetar</button>
+    <button type="button" data-view="test">Probar</button>
+    <button type="button" data-view="list">Lista</button>
+    <button type="button" data-view="export">Exportar</button>
+  </nav>
+
+  <dialog id="dialog">
+    <form method="dialog">
+      <h3 id="dialog-title"></h3>
+      <p id="dialog-body"></p>
+      <input id="dialog-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" hidden>
+      <div class="dialog-actions">
+        <button class="btn btn-ghost" value="cancel" type="submit">Cancelar</button>
+        <button class="btn btn-primary" value="ok" id="dialog-ok" type="submit">Aceptar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

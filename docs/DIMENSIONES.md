@@ -62,8 +62,8 @@ Plantilla vectorial a escala real **1:1** disponible en [`caja_120x120_1a1.svg`]
 
 | Elemento | Cantidad | Dimensiones | Notas |
 | :--- | :---: | :--- | :--- |
-| **Tarjetas PVC NFC 13.56 MHz** *(CR80 estándar)* | **50** (+ repuestos) | **`85,6 × 54,0 × 0,8 mm`** | `24` postulantes + `8` insights + `18` misterio |
+| **Tarjetas PVC NFC 13.56 MHz** *(CR80 estándar)* | **50** (+ repuestos) | **`85,6 × 54,0 × 0,8 mm`** | `24` postulantes + `8` ocupaciones (Insight) + `18` misterio |
 | **Gráfica adhesiva para pegar en tarjetas PVC** | 50 frentes (+ dorsos) | **`84,0 × 52,0 mm`** *(o `85,6 × 54,0 mm` al ras)* | Dejar `0,8 mm` de margen evita que se levanten los bordes al manipular |
 | *(Referencia PDF antiguo sin PVC)* | — | `63,0 × 88,0 mm` | Tamaño póker original antes de pasar a tarjetas PVC NFC |
-| **Guías de contratación** | 3 | Tamaño carta / A4 o A5 | Una por startup (`Ruedas Verdes`, `Estudio Prisma`, `Billetera Clara`) |
+| **Guías de contratación** | 3 | Tamaño carta / A4 o A5 | Una por startup (`NotCow`, `Fintubal`, `Ziptedi`) |
 | **Figuras 3D de jugadores + marcadores** | 3 figuras + 15 marcadores | Base `≤ 14 mm` | Deben caber cómodamente dentro de las casillas de pasillo y contratación |

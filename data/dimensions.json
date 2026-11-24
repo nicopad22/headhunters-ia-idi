@@ -67,10 +67,22 @@
     },
     "buttons": {
       "count": 5,
-      "labels": ["P1", "P2", "P3", "BACK", "COBRAR"],
+      "labels": [
+        "P1",
+        "P2",
+        "P3",
+        "BACK",
+        "COBRAR"
+      ],
       "row_center_y": 98.0,
       "pitch_x": 21.0,
-      "centers_x": [18.0, 39.0, 60.0, 81.0, 102.0]
+      "centers_x": [
+        18.0,
+        39.0,
+        60.0,
+        81.0,
+        102.0
+      ]
     },
     "buzzer_passive": {
       "diameter": 12.0,
@@ -82,7 +94,11 @@
   },
   "cards": {
     "total_active_nfc_cards": 50,
-    "breakdown": { "candidates": 24, "insights": 8, "mystery": 18 },
+    "breakdown": {
+      "candidates": 24,
+      "insights": 8,
+      "mystery": 18
+    },
     "pvc_cr80_width": 85.6,
     "pvc_cr80_height": 54.0,
     "pvc_cr80_thickness": 0.8,
@@ -90,5 +106,164 @@
     "recommended_sticker_height": 52.0,
     "legacy_pdf_poker_width": 63.0,
     "legacy_pdf_poker_height": 88.0
+  },
+  "board_layout": {
+    "source": "data/Updated game data/Headhunters_plano_5-5mm_v4.pdf",
+    "material": "MDF 5,5 mm (una sola lámina, muro exterior incluido)",
+    "origin": "esquina superior izquierda, vista superior",
+    "size": [
+      500,
+      500
+    ],
+    "wall_thickness": 5.5,
+    "wall_height": 45,
+    "cell_size": 20.375,
+    "door_opening": 20.375,
+    "grid_axes_x": [
+      0,
+      127.75,
+      188.875,
+      311.125,
+      372.25,
+      500
+    ],
+    "grid_axes_y": [
+      0,
+      127.75,
+      188.875,
+      311.125,
+      372.25,
+      500
+    ],
+    "corridor_width": 61.125,
+    "counter_size": [
+      72,
+      30
+    ],
+    "mystery_squares": 8,
+    "rooms": [
+      {
+        "code": "A",
+        "name": "Taller mecánico",
+        "position": "esquina sup. izq.",
+        "footprint": [
+          122.25,
+          122.25
+        ],
+        "useful": [
+          116.75,
+          116.75
+        ],
+        "elevator_to": "E"
+      },
+      {
+        "code": "B",
+        "name": "Lab de prototipos",
+        "position": "centro sup.",
+        "footprint": [
+          122.25,
+          101.875
+        ],
+        "useful": [
+          111.25,
+          96.375
+        ]
+      },
+      {
+        "code": "C",
+        "name": "Estudio fotográfico",
+        "position": "esquina sup. der.",
+        "footprint": [
+          122.25,
+          122.25
+        ],
+        "useful": [
+          116.75,
+          116.75
+        ],
+        "elevator_to": "G"
+      },
+      {
+        "code": "D",
+        "name": "Showroom",
+        "position": "centro der.",
+        "footprint": [
+          101.875,
+          122.25
+        ],
+        "useful": [
+          96.375,
+          111.25
+        ]
+      },
+      {
+        "code": "E",
+        "name": "Estudio de diseño",
+        "position": "esquina inf. der.",
+        "footprint": [
+          122.25,
+          122.25
+        ],
+        "useful": [
+          116.75,
+          116.75
+        ],
+        "elevator_to": "A"
+      },
+      {
+        "code": "F",
+        "name": "Sala de servidores",
+        "position": "centro inf.",
+        "footprint": [
+          122.25,
+          101.875
+        ],
+        "useful": [
+          111.25,
+          96.375
+        ]
+      },
+      {
+        "code": "G",
+        "name": "Oficina web",
+        "position": "esquina inf. izq.",
+        "footprint": [
+          122.25,
+          122.25
+        ],
+        "useful": [
+          116.75,
+          116.75
+        ],
+        "elevator_to": "C"
+      },
+      {
+        "code": "H",
+        "name": "Mesa de dinero",
+        "position": "centro izq.",
+        "footprint": [
+          101.875,
+          122.25
+        ],
+        "useful": [
+          96.375,
+          111.25
+        ]
+      },
+      {
+        "code": "R",
+        "name": "Recepción · RR.HH.",
+        "position": "centro",
+        "footprint": [
+          122.25,
+          122.25
+        ],
+        "useful": [
+          111.25,
+          111.25
+        ],
+        "notes": "Aquí va la consola 120×120 mm"
+      }
+    ]
   }
 }

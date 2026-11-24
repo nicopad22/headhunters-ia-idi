@@ -11,11 +11,13 @@ namespace {
 constexpr const char* NVS_NAMESPACE = "hh_cards";
 constexpr const char* NVS_KEY_UIDS = "uids";
 constexpr const char* NVS_KEY_COUNT = "n";
+constexpr const char* NVS_KEY_SOURCE = "src";  // fingerprint of the compiled table flash was based on
 
 constexpr uint8_t SLOT_FIRST_OCCUPATION = NUM_CANDIDATES;
 constexpr uint8_t SLOT_FIRST_MYSTERY = NUM_CANDIDATES + NUM_OCCUPATIONS;
 
 uint32_t uids[NUM_CARDS];
+uint32_t compiled_fingerprint = 0;
 
 uint32_t compiledUid(uint8_t slot) {
   CardRef r = cardRef(slot);
@@ -32,6 +34,7 @@ bool save() {
   if (!prefs.begin(NVS_NAMESPACE, false)) return false;
   size_t written = prefs.putBytes(NVS_KEY_UIDS, uids, sizeof(uids));
   prefs.putUChar(NVS_KEY_COUNT, NUM_CARDS);
+  prefs.putULong(NVS_KEY_SOURCE, compiled_fingerprint);
   prefs.end();
   return written == sizeof(uids);
 }
@@ -49,6 +52,7 @@ const char* mysteryEffectLabel(MysteryEffect e) {
     case MYS_UPGRADE_HUMAN_TO_HYBRID: return "Mejora Humano";
     case MYS_RETURN_CANDIDATE_HALF:   return "Devuelve postulante";
     case MYS_TRIVIA_CONFIRM:          return "Trivia Si/No";
+    case MYS_SWAP_CANDIDATE:          return "Intercambio";
   }
   return "";
 }
@@ -61,19 +65,45 @@ CardRef cardRef(uint8_t slot) {
   return {CARD_MYSTERY, static_cast<uint8_t>(slot - SLOT_FIRST_MYSTERY)};
 }
 
+// Precedence:
+//  1. game_data.h has UIDs that flash has not seen yet (new import + reflash)
+//     -> use them and copy them to flash.
+//  2. otherwise, flash has a saved table (admin-mode edits) -> use flash.
+//  3. otherwise -> use game_data.h as-is (possibly all empty).
 RegistrySource registryBegin() {
+  uint32_t compiled[NUM_CARDS];
+  bool compiled_any = false;
+  uint32_t fp = 2166136261u;  // FNV-1a over the compiled table
+  for (uint8_t s = 0; s < NUM_CARDS; ++s) {
+    compiled[s] = compiledUid(s);
+    compiled_any |= compiled[s] != 0;
+    for (uint8_t b = 0; b < 4; ++b) {
+      fp ^= (compiled[s] >> (8 * b)) & 0xFF;
+      fp *= 16777619u;
+    }
+  }
+  compiled_fingerprint = fp;
+
   Preferences prefs;
   bool loaded = false;
+  uint32_t stored_fp = 0;
   if (prefs.begin(NVS_NAMESPACE, true)) {  // read-only; fails if namespace absent
     if (prefs.getUChar(NVS_KEY_COUNT, 0) == NUM_CARDS &&
         prefs.getBytesLength(NVS_KEY_UIDS) == sizeof(uids)) {
       loaded = prefs.getBytes(NVS_KEY_UIDS, uids, sizeof(uids)) == sizeof(uids);
+      stored_fp = prefs.getULong(NVS_KEY_SOURCE, 0);
     }
     prefs.end();
   }
-  if (loaded) return REG_SOURCE_FLASH;
 
-  for (uint8_t s = 0; s < NUM_CARDS; ++s) uids[s] = compiledUid(s);
+  bool compiled_is_new = compiled_any && (!loaded || stored_fp != compiled_fingerprint);
+  if (loaded && !compiled_is_new) return REG_SOURCE_FLASH;
+
+  memcpy(uids, compiled, sizeof(uids));
+  if (compiled_is_new) {
+    save();
+    return REG_SOURCE_COMPILED_IMPORTED;
+  }
   return REG_SOURCE_COMPILED;
 }
 
@@ -126,7 +156,7 @@ void cardCode(uint8_t slot, char* out, size_t n) {
 const char* cardKindLabel(CardKind kind) {
   switch (kind) {
     case CARD_CANDIDATE:  return "POSTULANTE";
-    case CARD_OCCUPATION: return "INSIGHT";
+    case CARD_OCCUPATION: return "OCUPACION";
     case CARD_MYSTERY:    return "MISTERIO";
   }
   return "";
@@ -148,15 +178,17 @@ void cardDescribe(uint8_t slot, char* l1, char* l2, char* l3, size_t n) {
     case CARD_CANDIDATE: {
       const CandidateDef& c = CANDIDATES[r.index];
       asciiFold(c.name, l1, n);
-      asciiFold(OCCUPATIONS[c.occupation_id].room, l2, n);
+      asciiFold(OCCUPATIONS[c.occupation_id].cargo, l2, n);
       snprintf(l3, n, "%s $%d +%u", modalityLabel(c.modality), c.cost, c.profitability);
       break;
     }
     case CARD_OCCUPATION: {
       const OccupationDef& o = OCCUPATIONS[r.index];
-      asciiFold(o.room, l1, n);
-      asciiFold(o.role, l2, n);
-      snprintf(l3, n, "Tarjeta Insight $%d", INSIGHT_COST);
+      char raw[40];
+      asciiFold(o.cargo, l1, n);
+      snprintf(raw, sizeof(raw), "Sala %c %s", o.room_code, o.room);
+      asciiFold(raw, l2, n);
+      snprintf(l3, n, "Insight $%d", INSIGHT_COST);
       break;
     }
     case CARD_MYSTERY: {

@@ -11,10 +11,10 @@ constexpr uint8_t NUM_CANDIDATES = 24;
 constexpr uint8_t NUM_MYSTERY_CARDS = 18;
 constexpr uint8_t ROLES_PER_COMPANY = 5;
 constexpr int16_t STARTING_MONEY = 500;
-constexpr uint8_t STARTING_PROFITABILITY = 0;
-constexpr uint8_t WIN_PROFITABILITY_TARGET = 12;
-constexpr int16_t RECEPTION_BASE_PAYOUT = 100;
+constexpr uint8_t STARTING_PROFITABILITY = 2;
+constexpr uint8_t MAX_PROFITABILITY = 17;
 constexpr int16_t RECEPTION_PAYOUT_PER_LEVEL = 100;
+constexpr int16_t TRIVIA_REWARD = 100;
 constexpr int16_t INSIGHT_COST = 50;
 
 enum Modality : uint8_t {
@@ -35,17 +35,20 @@ enum MysteryEffect : uint8_t {
   MYS_UPGRADE_HUMAN_TO_HYBRID,
   MYS_RETURN_CANDIDATE_HALF,
   MYS_TRIVIA_CONFIRM,
+  MYS_SWAP_CANDIDATE,
 };
 
 struct OccupationDef {
   uint8_t id;
   const char* isco;
+  const char* cargo;      // as printed on the startup guides
+  char room_code;         // board room letter (A..H)
   const char* room;
   const char* role;
   float oit_score;
   const char* oit_level;
   Modality ideal_modality;
-  uint32_t nfc_uid_hash; // 0 if unassigned
+  uint32_t nfc_uid_hash; // 0 if unassigned (Insight card)
 };
 
 struct CandidateDef {
@@ -61,8 +64,8 @@ struct CandidateDef {
 struct CompanyDef {
   uint8_t id;
   const char* name;
-  const char* founder;
-  uint8_t required_occupations[ROLES_PER_COMPANY];
+  const char* short_name; // 2 letters for the leaderboard
+  uint8_t required_occupations[ROLES_PER_COMPANY]; // in guide order 1..5
 };
 
 struct MysteryCardDef {
@@ -75,47 +78,47 @@ struct MysteryCardDef {
 };
 
 static const OccupationDef OCCUPATIONS[NUM_OCCUPATIONS] = {
-  {0, "2144", "Taller mecánico", "Ingeniero/a mecánico/a", 0.32f, "Sin exposicion", MOD_HUMANO, 0},
-  {1, "2163", "Lab de prototipos", "Diseñador/a de productos", 0.35f, "Minima", MOD_HUMANO, 0},
-  {2, "3431", "Estudio fotográfico", "Fotógrafo/a de contenido", 0.39f, "Baja", MOD_HUMANO_IA, 0},
-  {3, "3322", "Showroom", "Ejecutivo/a de ventas", 0.49f, "Moderada", MOD_HUMANO_IA, 0},
-  {4, "2166", "Estudio de diseño", "Diseñador/a gráfico/a", 0.49f, "Moderada", MOD_HUMANO_IA, 0},
-  {5, "2512", "Sala de servidores", "Desarrollador/a de software", 0.53f, "Alta", MOD_HUMANO_IA, 0},
-  {6, "2513", "Oficina web", "Desarrollador/a web", 0.60f, "Muy alta", MOD_HUMANO_IA, 0},
-  {7, "2413", "Mesa de dinero", "Analista financiero/a", 0.62f, "Muy alta", MOD_HUMANO_IA, 0},
+  {0, "2144", "Ingeniería mecánica", 'A', "Taller mecánico", "Ingeniero/a mecánico/a", 0.32f, "Sin exposicion", MOD_HUMANO, 0},
+  {1, "2163", "Diseño de productos", 'B', "Lab de prototipos", "Diseñador/a de productos", 0.35f, "Minima", MOD_HUMANO, 0},
+  {2, "3431", "Fotografía de contenido", 'C', "Estudio fotográfico", "Fotógrafo/a de contenido", 0.39f, "Baja", MOD_HUMANO_IA, 0},
+  {3, "3322", "Ventas", 'D', "Showroom", "Ejecutivo/a de ventas", 0.49f, "Moderada", MOD_HUMANO_IA, 0},
+  {4, "2166", "Diseño gráfico", 'E', "Estudio de diseño", "Diseñador/a gráfico/a", 0.49f, "Moderada", MOD_HUMANO_IA, 0},
+  {5, "2512", "Desarrollo de software", 'F', "Sala de servidores", "Desarrollador/a de software", 0.53f, "Alta", MOD_HUMANO_IA, 0},
+  {6, "2513", "Desarrollo web", 'G', "Oficina web", "Desarrollador/a web", 0.60f, "Muy alta", MOD_HUMANO_IA, 0},
+  {7, "2413", "Análisis financiero", 'H', "Mesa de dinero", "Analista financiero/a", 0.62f, "Muy alta", MOD_HUMANO_IA, 0},
 };
 
 static const CandidateDef CANDIDATES[NUM_CANDIDATES] = {
-  {0, 0, MOD_HUMANO, "Rosa Quispe", 200, 3, 0},
-  {1, 0, MOD_HUMANO_IA, "Tomás Fuentes", 300, 2, 0},
-  {2, 0, MOD_IA_SOLA, "TUERCA-3000", 100, 1, 0},
-  {3, 1, MOD_HUMANO, "Ignacio Paredes", 200, 3, 0},
-  {4, 1, MOD_HUMANO_IA, "Valentina Soto", 300, 2, 0},
-  {5, 1, MOD_IA_SOLA, "PROTO", 100, 1, 0},
-  {6, 2, MOD_HUMANO, "Amara Diallo", 200, 2, 0},
-  {7, 2, MOD_HUMANO_IA, "Joaquín Herrera", 300, 3, 0},
-  {8, 2, MOD_IA_SOLA, "FLASH", 100, 1, 0},
-  {9, 3, MOD_HUMANO, "Carolina Méndez", 200, 2, 0},
-  {10, 3, MOD_HUMANO_IA, "Diego Morales", 300, 3, 0},
-  {11, 3, MOD_IA_SOLA, "VENTA-BOT", 100, 1, 0},
-  {12, 4, MOD_HUMANO, "Lucía Navarro", 200, 2, 0},
-  {13, 4, MOD_HUMANO_IA, "Matías Rojas", 300, 3, 0},
-  {14, 4, MOD_IA_SOLA, "PIXEL", 100, 1, 0},
-  {15, 5, MOD_HUMANO, "Sofía Contreras", 200, 2, 0},
-  {16, 5, MOD_HUMANO_IA, "Benjamín Lagos", 300, 3, 0},
-  {17, 5, MOD_IA_SOLA, "BYTE", 100, 1, 0},
-  {18, 6, MOD_HUMANO, "Kenji Tanaka", 200, 1, 0},
-  {19, 6, MOD_HUMANO_IA, "Florencia Vidal", 300, 3, 0},
-  {20, 6, MOD_IA_SOLA, "WEBBY", 100, 2, 0},
-  {21, 7, MOD_HUMANO, "Andrés Castillo", 200, 1, 0},
-  {22, 7, MOD_HUMANO_IA, "Martina Pérez", 300, 3, 0},
-  {23, 7, MOD_IA_SOLA, "CIFRA", 100, 2, 0},
+  {0, 0, MOD_HUMANO, "Marie Curri", 200, 3, 0},
+  {1, 0, MOD_HUMANO_IA, "Elon Mug", 300, 2, 0},
+  {2, 0, MOD_IA_SOLA, "Autodesko Fusión", 100, 1, 0},
+  {3, 1, MOD_HUMANO, "Yoni Aiv", 200, 3, 0},
+  {4, 1, MOD_HUMANO_IA, "Ray Eims", 300, 2, 0},
+  {5, 1, MOD_IA_SOLA, "Vizcomba", 100, 1, 0},
+  {6, 2, MOD_HUMANO, "Annie Leivobitz", 200, 2, 0},
+  {7, 2, MOD_HUMANO_IA, "Sergio Larrayn", 300, 3, 0},
+  {8, 2, MOD_IA_SOLA, "Adobo Firefly", 100, 1, 0},
+  {9, 3, MOD_HUMANO, "Mery Kei", 200, 2, 0},
+  {10, 3, MOD_HUMANO_IA, "Steve Yobs", 300, 3, 0},
+  {11, 3, MOD_IA_SOLA, "Agente Fuerza", 100, 1, 0},
+  {12, 4, MOD_HUMANO, "Paula Escher", 200, 2, 0},
+  {13, 4, MOD_HUMANO_IA, "Milton Glasé", 300, 3, 0},
+  {14, 4, MOD_IA_SOLA, "Canvaz Studio", 100, 1, 0},
+  {15, 5, MOD_HUMANO, "Ada Lovelaz", 200, 2, 0},
+  {16, 5, MOD_HUMANO_IA, "Bill Puertas", 300, 3, 0},
+  {17, 5, MOD_IA_SOLA, "Claudio Code", 100, 1, 0},
+  {18, 6, MOD_HUMANO, "Mark Zucarberg", 200, 1, 0},
+  {19, 6, MOD_HUMANO_IA, "Marisa Mayo", 300, 3, 0},
+  {20, 6, MOD_IA_SOLA, "Lovablito", 100, 2, 0},
+  {21, 7, MOD_HUMANO, "Jeff Pezos", 200, 1, 0},
+  {22, 7, MOD_HUMANO_IA, "Oprah Winfrei", 300, 3, 0},
+  {23, 7, MOD_IA_SOLA, "Copiloto Excelente", 100, 2, 0},
 };
 
 static const CompanyDef COMPANIES[NUM_PLAYERS] = {
-  {0, "Ruedas Verdes", "Pía Riquelme", {0, 2, 3, 5, 7}},
-  {1, "Estudio Prisma", "Nico Alvarado", {1, 2, 4, 5, 6}},
-  {2, "Billetera Clara", "Elena Huenchu", {0, 1, 3, 6, 7}},
+  {0, "NotCow", "NC", {1, 2, 4, 5, 6}},
+  {1, "Fintubal", "FT", {4, 3, 5, 6, 7}},
+  {2, "Ziptedi", "ZT", {0, 1, 5, 3, 7}},
 };
 
 static const MysteryCardDef MYSTERY_CARDS[NUM_MYSTERY_CARDS] = {
@@ -124,15 +127,15 @@ static const MysteryCardDef MYSTERY_CARDS[NUM_MYSTERY_CARDS] = {
   {3, "Nueva herramienta de IA", MYS_BONUS_PER_MODALITY, MOD_HUMANO_IA, 100, 0},
   {4, "Error viral", MYS_PENALTY_PER_MODALITY, MOD_IA_SOLA, 100, 0},
   {5, "Auditoría de calidad", MYS_PENALTY_LOW_IA, MOD_HUMANO, 100, 0},
-  {6, "Caída del servidor", MYS_FORCE_RECEPTION_NO_PAY, MOD_HUMANO, 0, 0},
+  {6, "¡Se cayó el server!", MYS_FORCE_RECEPTION_NO_PAY, MOD_HUMANO, 0, 0},
   {7, "Pitch exitoso", MYS_ENABLE_PAYOUT_RECEPTION, MOD_HUMANO, 0, 0},
-  {8, "Feria laboral", MYS_BOARD_INFO_ONLY, MOD_HUMANO, 0, 0},
+  {8, "Expansión internacional", MYS_BOARD_INFO_ONLY, MOD_HUMANO, 0, 0},
   {9, "Práctica profesional", MYS_NEXT_HIRE_DISCOUNT, MOD_HUMANO, 100, 0},
   {10, "Headhunting directo", MYS_BOARD_INFO_ONLY, MOD_HUMANO, 0, 0},
   {11, "Capacitación interna", MYS_UPGRADE_HUMAN_TO_HYBRID, MOD_HUMANO, 100, 0},
-  {12, "Reestructuración (devolución)", MYS_RETURN_CANDIDATE_HALF, MOD_HUMANO, 50, 0},
+  {12, "Fuga de talento", MYS_SWAP_CANDIDATE, MOD_HUMANO, 0, 0},
   {13, "Reestructuración", MYS_RETURN_CANDIDATE_HALF, MOD_HUMANO, 50, 0},
-  {14, "Ascensor exprés", MYS_BOARD_INFO_ONLY, MOD_HUMANO, 0, 0},
+  {14, "Trabajo remoto", MYS_BOARD_INFO_ONLY, MOD_HUMANO, 0, 0},
   {15, "Dato OIT #1", MYS_TRIVIA_CONFIRM, MOD_HUMANO, 100, 0},
   {16, "Dato OIT #2", MYS_TRIVIA_CONFIRM, MOD_HUMANO, 100, 0},
   {17, "Dato OIT #3", MYS_TRIVIA_CONFIRM, MOD_HUMANO, 100, 0},

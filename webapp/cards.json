@@ -1,0 +1,561 @@
+{
+ "title": "Headhunters en la era de la IA",
+ "count": 50,
+ "groups": [
+  {
+   "kind": "candidate",
+   "title": "Postulantes",
+   "count": 24
+  },
+  {
+   "kind": "occupation",
+   "title": "Ocupaciones (Insight)",
+   "count": 8
+  },
+  {
+   "kind": "mystery",
+   "title": "Misterio",
+   "count": 18
+  }
+ ],
+ "companies": [
+  {
+   "name": "NotCow",
+   "description": "Foodtech chilena · alimentos vegetales creados con IA",
+   "color": "#26834A",
+   "cargos": [
+    "Diseño de productos",
+    "Fotografía de contenido",
+    "Diseño gráfico",
+    "Desarrollo de software",
+    "Desarrollo web"
+   ]
+  },
+  {
+   "name": "Fintubal",
+   "description": "Fintech chilena · invertir fácil desde una app",
+   "color": "#74368D",
+   "cargos": [
+    "Diseño gráfico",
+    "Ventas",
+    "Desarrollo de software",
+    "Desarrollo web",
+    "Análisis financiero"
+   ]
+  },
+  {
+   "name": "Ziptedi",
+   "description": "Robótica chilena · robots que revisan las góndolas",
+   "color": "#FF8533",
+   "cargos": [
+    "Ingeniería mecánica",
+    "Diseño de productos",
+    "Desarrollo de software",
+    "Ventas",
+    "Análisis financiero"
+   ]
+  }
+ ],
+ "cards": [
+  {
+   "code": "C01",
+   "kind": "candidate",
+   "index": 0,
+   "title": "Marie Curri",
+   "subtitle": "Ingeniera mecánica · Sala A Taller mecánico",
+   "detail": "ID 001 · Humano · $200 · +3",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C02",
+   "kind": "candidate",
+   "index": 1,
+   "title": "Elon Mug",
+   "subtitle": "Ingeniero mecánico · Sala A Taller mecánico",
+   "detail": "ID 002 · Humano + IA · Autodesko Fusión · $300 · +2",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C03",
+   "kind": "candidate",
+   "index": 2,
+   "title": "Autodesko Fusión",
+   "subtitle": "Ingeniería mecánica · Sala A Taller mecánico",
+   "detail": "ID 003 · IA sola · $100 · +1",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C04",
+   "kind": "candidate",
+   "index": 3,
+   "title": "Yoni Aiv",
+   "subtitle": "Diseñador de productos · Sala B Lab de prototipos",
+   "detail": "ID 004 · Humano · $200 · +3",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C05",
+   "kind": "candidate",
+   "index": 4,
+   "title": "Ray Eims",
+   "subtitle": "Diseñadora de productos · Sala B Lab de prototipos",
+   "detail": "ID 005 · Humano + IA · Vizcomba · $300 · +2",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C06",
+   "kind": "candidate",
+   "index": 5,
+   "title": "Vizcomba",
+   "subtitle": "Diseño de productos · Sala B Lab de prototipos",
+   "detail": "ID 006 · IA sola · $100 · +1",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C07",
+   "kind": "candidate",
+   "index": 6,
+   "title": "Annie Leivobitz",
+   "subtitle": "Fotógrafa de contenido · Sala C Estudio fotográfico",
+   "detail": "ID 007 · Humano · $200 · +2",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C08",
+   "kind": "candidate",
+   "index": 7,
+   "title": "Sergio Larrayn",
+   "subtitle": "Fotógrafo de contenido · Sala C Estudio fotográfico",
+   "detail": "ID 008 · Humano + IA · Adobo Firefly · $300 · +3",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C09",
+   "kind": "candidate",
+   "index": 8,
+   "title": "Adobo Firefly",
+   "subtitle": "Fotografía de contenido · Sala C Estudio fotográfico",
+   "detail": "ID 009 · IA sola · $100 · +1",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C10",
+   "kind": "candidate",
+   "index": 9,
+   "title": "Mery Kei",
+   "subtitle": "Ejecutiva de ventas · Sala D Showroom",
+   "detail": "ID 010 · Humano · $200 · +2",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C11",
+   "kind": "candidate",
+   "index": 10,
+   "title": "Steve Yobs",
+   "subtitle": "Ejecutivo de ventas · Sala D Showroom",
+   "detail": "ID 011 · Humano + IA · Agente Fuerza · $300 · +3",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C12",
+   "kind": "candidate",
+   "index": 11,
+   "title": "Agente Fuerza",
+   "subtitle": "Ventas · Sala D Showroom",
+   "detail": "ID 012 · IA sola · $100 · +1",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C13",
+   "kind": "candidate",
+   "index": 12,
+   "title": "Paula Escher",
+   "subtitle": "Diseñadora gráfica · Sala E Estudio de diseño",
+   "detail": "ID 013 · Humano · $200 · +2",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C14",
+   "kind": "candidate",
+   "index": 13,
+   "title": "Milton Glasé",
+   "subtitle": "Diseñador gráfico · Sala E Estudio de diseño",
+   "detail": "ID 014 · Humano + IA · Canvaz Studio · $300 · +3",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C15",
+   "kind": "candidate",
+   "index": 14,
+   "title": "Canvaz Studio",
+   "subtitle": "Diseño gráfico · Sala E Estudio de diseño",
+   "detail": "ID 015 · IA sola · $100 · +1",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C16",
+   "kind": "candidate",
+   "index": 15,
+   "title": "Ada Lovelaz",
+   "subtitle": "Desarrolladora de software · Sala F Sala de servidores",
+   "detail": "ID 016 · Humano · $200 · +2",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C17",
+   "kind": "candidate",
+   "index": 16,
+   "title": "Bill Puertas",
+   "subtitle": "Desarrollador de software · Sala F Sala de servidores",
+   "detail": "ID 017 · Humano + IA · Claudio Code · $300 · +3",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C18",
+   "kind": "candidate",
+   "index": 17,
+   "title": "Claudio Code",
+   "subtitle": "Desarrollo de software · Sala F Sala de servidores",
+   "detail": "ID 018 · IA sola · $100 · +1",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C19",
+   "kind": "candidate",
+   "index": 18,
+   "title": "Mark Zucarberg",
+   "subtitle": "Desarrollador web · Sala G Oficina web",
+   "detail": "ID 019 · Humano · $200 · +1",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C20",
+   "kind": "candidate",
+   "index": 19,
+   "title": "Marisa Mayo",
+   "subtitle": "Desarrolladora web · Sala G Oficina web",
+   "detail": "ID 020 · Humano + IA · Lovablito · $300 · +3",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C21",
+   "kind": "candidate",
+   "index": 20,
+   "title": "Lovablito",
+   "subtitle": "Desarrollo web · Sala G Oficina web",
+   "detail": "ID 021 · IA sola · $100 · +2",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C22",
+   "kind": "candidate",
+   "index": 21,
+   "title": "Jeff Pezos",
+   "subtitle": "Analista financiero · Sala H Mesa de dinero",
+   "detail": "ID 022 · Humano · $200 · +1",
+   "color": "#FFCE32",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C23",
+   "kind": "candidate",
+   "index": 22,
+   "title": "Oprah Winfrei",
+   "subtitle": "Analista financiera · Sala H Mesa de dinero",
+   "detail": "ID 023 · Humano + IA · Copiloto Excelente · $300 · +3",
+   "color": "#F58DBD",
+   "nfc_uid": ""
+  },
+  {
+   "code": "C24",
+   "kind": "candidate",
+   "index": 23,
+   "title": "Copiloto Excelente",
+   "subtitle": "Análisis financiero · Sala H Mesa de dinero",
+   "detail": "ID 024 · IA sola · $100 · +2",
+   "color": "#34B6B4",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I01",
+   "kind": "occupation",
+   "index": 0,
+   "title": "Ingeniería mecánica",
+   "subtitle": "Sala A Taller mecánico",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I02",
+   "kind": "occupation",
+   "index": 1,
+   "title": "Diseño de productos",
+   "subtitle": "Sala B Lab de prototipos",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I03",
+   "kind": "occupation",
+   "index": 2,
+   "title": "Fotografía de contenido",
+   "subtitle": "Sala C Estudio fotográfico",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I04",
+   "kind": "occupation",
+   "index": 3,
+   "title": "Ventas",
+   "subtitle": "Sala D Showroom",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I05",
+   "kind": "occupation",
+   "index": 4,
+   "title": "Diseño gráfico",
+   "subtitle": "Sala E Estudio de diseño",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I06",
+   "kind": "occupation",
+   "index": 5,
+   "title": "Desarrollo de software",
+   "subtitle": "Sala F Sala de servidores",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I07",
+   "kind": "occupation",
+   "index": 6,
+   "title": "Desarrollo web",
+   "subtitle": "Sala G Oficina web",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "I08",
+   "kind": "occupation",
+   "index": 7,
+   "title": "Análisis financiero",
+   "subtitle": "Sala H Mesa de dinero",
+   "detail": "Tarjeta de ocupación (Insight) · $50",
+   "color": "#7A6FB0",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M01",
+   "kind": "mystery",
+   "index": 0,
+   "title": "N.º 01 · Ronda de inversión",
+   "subtitle": "Suma dinero",
+   "detail": "Jeff Pezos invirtió en NotCow. Hoy alguien cree en tu startup. Recibe $300 en la consola.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M02",
+   "kind": "mystery",
+   "index": 1,
+   "title": "N.º 02 · Clientes piden trato humano",
+   "subtitle": "Bono por modalidad",
+   "detail": "Tus clientes quieren hablar con una persona. Cobra $100 por cada «Humano» de tu empresa.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M03",
+   "kind": "mystery",
+   "index": 2,
+   "title": "N.º 03 · Nueva herramienta de IA",
+   "subtitle": "Bono por modalidad",
+   "detail": "Tus equipos mixtos rinden más. Cobra $100 por cada «Humano + IA».",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M04",
+   "kind": "mystery",
+   "index": 3,
+   "title": "N.º 04 · Error viral",
+   "subtitle": "Multa por modalidad",
+   "detail": "Una IA sin supervisión publicó un error en redes. Paga $100 por cada «IA sola» de tu empresa.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M05",
+   "kind": "mystery",
+   "index": 4,
+   "title": "N.º 05 · Auditoría de calidad",
+   "subtitle": "Auditoría IA +1",
+   "detail": "Si tienes un «IA sola» con rentabilidad Baja (+1): paga $100 de multa o devuélvelo a su sala.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M06",
+   "kind": "mystery",
+   "index": 5,
+   "title": "N.º 06 · ¡Se cayó el server!",
+   "subtitle": "Recepción sin cobro",
+   "detail": "Tu equipo quedó desconectado. Vuelve a la Recepción. Este trimestre cobras $0.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M07",
+   "kind": "mystery",
+   "index": 6,
+   "title": "N.º 07 · Pitch exitoso",
+   "subtitle": "Habilita cobro",
+   "detail": "Fintubal convenció a Sekoya, uno de los fondos más famosos del mundo. Ve directo a la Recepción y cobra tu trimestre.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M08",
+   "kind": "mystery",
+   "index": 7,
+   "title": "N.º 08 · Expansión internacional",
+   "subtitle": "Jugada en tablero",
+   "detail": "Los robots de ZIPTEDI llegaron a supermercados de otros países. Mueve tu ficha a la puerta de cualquier sala de tu guía.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M09",
+   "kind": "mystery",
+   "index": 8,
+   "title": "N.º 09 · Práctica profesional",
+   "subtitle": "Descuento próxima contratación",
+   "detail": "Guarda esta carta. Tu próxima contratación cuesta $100 menos.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M10",
+   "kind": "mystery",
+   "index": 9,
+   "title": "N.º 10 · Headhunting directo",
+   "subtitle": "Jugada en tablero",
+   "detail": "Encontraste al talento perfecto sin salir de la oficina. Contrata en cualquier sala de tu guía sin ir hasta ella, pagando el costo del postulante.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M11",
+   "kind": "mystery",
+   "index": 10,
+   "title": "N.º 11 · Capacitación interna",
+   "subtitle": "Mejora Humano a Humano + IA",
+   "detail": "Tu equipo aprende a trabajar con IA. Cambia un «Humano» por el «Humano + IA» del mismo cargo, si está libre. Pagas $100.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M12",
+   "kind": "mystery",
+   "index": 11,
+   "title": "N.º 12 · Fuga de talento",
+   "subtitle": "Intercambia un postulante",
+   "detail": "Alguien se fue a la competencia. Intercambia un postulante con otro jugador que tenga el mismo cargo. Ambos ajustan su rentabilidad.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M13",
+   "kind": "mystery",
+   "index": 12,
+   "title": "N.º 13 · Reestructuración",
+   "subtitle": "Devuelve un postulante",
+   "detail": "Reorganizas tu equipo. Devuelve un postulante tuyo a su sala y recupera la mitad de lo que pagaste.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M14",
+   "kind": "mystery",
+   "index": 13,
+   "title": "N.º 14 · Trabajo remoto",
+   "subtitle": "Jugada en tablero",
+   "detail": "Te conectas desde cualquier lugar. Muévete a cualquier sala del edificio. Tu turno termina ahí.",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M15",
+   "kind": "mystery",
+   "index": 14,
+   "title": "N.º 15 · Dato OIT #1",
+   "subtitle": "Trivia Sí / No",
+   "detail": "¿Estar expuesto a la IA significa perder el empleo?",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M16",
+   "kind": "mystery",
+   "index": 15,
+   "title": "N.º 16 · Dato OIT #2",
+   "subtitle": "Trivia Sí / No",
+   "detail": "Del fotógrafo, ¿qué tarea está más expuesta: tomar retratos o pasar fotos al computador?",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M17",
+   "kind": "mystery",
+   "index": 16,
+   "title": "N.º 17 · Dato OIT #3",
+   "subtitle": "Trivia Sí / No",
+   "detail": "¿Quién está más expuesto: el desarrollador de software o el desarrollador web?",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  },
+  {
+   "code": "M18",
+   "kind": "mystery",
+   "index": 17,
+   "title": "N.º 18 · Dato OIT #4",
+   "subtitle": "Trivia Sí / No",
+   "detail": "El puntaje de una ocupación es el promedio de ¿qué tareas?",
+   "color": "#3E4A5C",
+   "nfc_uid": ""
+  }
+ ]
+}

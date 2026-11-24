@@ -21,6 +21,19 @@
 //
 // Compile with -DDUMMY_FLOW_TEST=1 (via ./run_firmware.sh --dummy-test) to run
 // the interactive 6-card, 11-step guided walkthrough of the entire game flow.
+//
+// Rules implemented (Instructivo A5 + Guias por empresa, data/Updated game data/):
+//   - Everyone starts with $500 and profitability level 2.
+//   - Hiring: pay the card price, profitability goes up +1/+2/+3 (OIT data).
+//     Replacing a role costs the full price of the new card; the old card goes
+//     back to its room with no refund.
+//   - Recepcion: $100 per profitability level, only if the player entered at
+//     least one room since the last payout (a hire counts; otherwise the console
+//     asks for confirmation).
+//   - No money: you can't hire. If you must pay and can't, you return one card
+//     to its room with no refund.
+//   - End: when someone completes their 5 roles a last round is played; then
+//     highest profitability wins, ties broken by money.
 // ============================================================================
 
 constexpr uint8_t OLED_I2C_ADDR = 0x3C;
@@ -46,7 +59,12 @@ enum ConsoleState : uint8_t {
   STATE_PLAYER_SELECTED,
   STATE_SHOW_FEEDBACK,
   STATE_WAIT_TRIVIA_CONFIRM,
+  STATE_WAIT_PAYOUT_CONFIRM,  // COBRAR without a hire since last payout: "did you enter a room?"
   STATE_WAIT_RETURN_SCAN,
+  STATE_CONFIRM_END_GAME,     // last round finished? [$] = end the game
+  STATE_WAIT_AUDIT_CHOICE,    // Auditoria: [$] pay the fine / [<-] return the IA +1
+  STATE_WAIT_SWAP_MINE,       // Fuga de talento: scan your own card
+  STATE_WAIT_SWAP_THEIRS,     // Fuga de talento: scan the other player's card (same role)
   STATE_GAME_OVER,
   STATE_ADMIN_CODE,  // BACK was held 10 s, waiting for the P1-P2-P3 code
   STATE_ADMIN,       // card-assignment admin mode
@@ -59,10 +77,9 @@ struct PlayerState {
   int16_t money;
   uint8_t profitability;
   int8_t hired_candidate_by_slot[ROLES_PER_COMPANY]; // -1 if empty
-  int8_t last_hired_occupation_id;                   // -1 if none yet (cooldown)
   int16_t next_hire_discount;
   bool upgrade_human_ready;
-  bool eligible_for_payout;
+  bool eligible_for_payout;  // hired (so entered a room) or Pitch exitoso since last payout
 };
 
 struct Button {
@@ -86,7 +103,13 @@ ConsoleState console_state = STATE_IDLE_LEADERBOARD;
 ConsoleState state_after_feedback = STATE_IDLE_LEADERBOARD;
 int8_t active_player = -1;
 int8_t winner_player = -1;
+int8_t last_round_by = -1;       // player who completed 5/5 first (-1: not in last round)
+uint8_t final_rank[NUM_PLAYERS]; // player indices, best first (valid in STATE_GAME_OVER)
 int16_t pending_trivia_reward = 0;
+bool return_forced = false;      // WAIT_RETURN_SCAN because the player couldn't pay (no refund)
+bool return_low_ia_only = false; // Auditoria: only an "IA sola" +1 may be returned
+int16_t pending_audit_fine = 0;
+int8_t swap_my_cand = -1;        // Fuga de talento: candidate the active player gives away
 
 // Feedback screen buffer (ASCII-folded for the 5x7 OLED font)
 char fb_title[22] = "";
@@ -95,8 +118,9 @@ char fb_line2[22] = "";
 char fb_line3[22] = "";
 uint32_t fb_started_ms = 0;
 
-const char* COMPANY_SHORT[NUM_PLAYERS] = {"RV", "EP", "BC"};
-const char* COMPANY_ASCII[NUM_PLAYERS] = {"Ruedas Verdes", "Estudio Prisma", "Billetera Clara"};
+// Company names in game_data.h are plain ASCII, so they can go to the OLED as-is.
+#define COMPANY_SHORT(p) (COMPANIES[p].short_name)
+#define COMPANY_ASCII(p) (COMPANIES[p].name)
 
 Button buttons[NUM_BUTTONS] = {
   {PIN_BTN_P1, HIGH, 0, false, 0, false, false, false},
@@ -150,46 +174,46 @@ uint32_t dummy_uids[DUMMY_CARD_COUNT] = {0, 0, 0, 0, 0, 0};
 uint8_t dummy_enrolled = 0;
 uint8_t dummy_step = 0; // 0..10 guided steps, 11 = completed (free play!)
 
-// Maps the 6 temporary cards to real game items:
-// [0] Candidate #0  (Rosa Quispe     — Ing. Mecanico, Humano, $200, +3)  [Valid P1]
-// [1] Candidate #1  (Tomas Fuentes   — Ing. Mecanico, H+IA,   $300, +2)  [Replacement P1]
-// [2] Candidate #7  (Joaquin Herrera — Fotografo,     H+IA,   $300, +3)  [2nd role P1]
-// [3] Candidate #12 (Lucia Navarro   — Dis. Grafico,  Humano, $200, +2)  [NOT in P1 guide]
-// [4] Occupation #0 (Taller Mecanico — Insight $50, OIT 0.32 -> Humano)
+// Maps the 6 temporary cards to real game items (P1 = NotCow):
+// [0] Candidate #3  (Yoni Aiv — Diseno de productos, Humano, $200, +3)  [Valid P1]
+// [1] Candidate #4  (Ray Eims  — Diseno de productos, H+IA,   $300, +2)  [Replacement P1]
+// [2] Candidate #7  (Sergio Larrayn — Fotografia,          H+IA,   $300, +3)  [2nd role P1]
+// [3] Candidate #0  (Marie Curri     — Ingenieria mecanica) [NOT in NotCow guide]
+// [4] Mystery #1    (Ronda de inversion — +$300)
 // [5] Mystery #15   (Dato OIT #1     — Trivia +$100 via COBRAR/BACK)
 const CardRef DUMMY_CARD_MAP[DUMMY_CARD_COUNT] = {
-  {CARD_CANDIDATE, 0}, {CARD_CANDIDATE, 1}, {CARD_CANDIDATE, 7},
-  {CARD_CANDIDATE, 12}, {CARD_OCCUPATION, 0}, {CARD_MYSTERY, 14},
+  {CARD_CANDIDATE, 3}, {CARD_CANDIDATE, 4}, {CARD_CANDIDATE, 7},
+  {CARD_CANDIDATE, 0}, {CARD_MYSTERY, 0}, {CARD_MYSTERY, 14},
 };
 
 const char* DUMMY_ENROLL_LABELS[DUMMY_CARD_COUNT] = {
-  "1/6: Rosa (H $200)",
-  "2/6: Tomas (Reempl)",
-  "3/6: Joaquin (H+IA)",
-  "4/6: Lucia (No P1)",
-  "5/6: Insight Mec.",
+  "1/6: Yoni H $200",
+  "2/6: Ray (Reempl)",
+  "3/6: Sergio (H+IA)",
+  "4/6: Marie (No P1)",
+  "5/6: Misterio +$300",
   "6/6: Trivia OIT",
 };
 
 const char* DUMMY_ENROLL_SERIAL[DUMMY_CARD_COUNT] = {
-  "Card #1 -> Candidate: Rosa Quispe (Ing. Mecanico, Humano $200, +3) [valid for P1]",
-  "Card #2 -> Candidate: Tomas Fuentes (Ing. Mecanico, H+IA $300, +2) [replacement test]",
-  "Card #3 -> Candidate: Joaquin Herrera (Fotografo, H+IA $300, +3) [2nd role for P1]",
-  "Card #4 -> Candidate: Lucia Navarro (Dis. Grafico) [NOT in P1 guide -> block test]",
-  "Card #5 -> Occupation Insight: Taller Mecanico ($50, OIT 0.32 -> Humano)",
+  "Card #1 -> Candidate: Yoni Aiv (Diseno de productos, Humano $200, +3) [valid for P1 NotCow]",
+  "Card #2 -> Candidate: Ray Eims (Diseno de productos, H+IA $300, +2) [replacement test]",
+  "Card #3 -> Candidate: Sergio Larrayn (Fotografia, H+IA $300, +3) [2nd role for P1]",
+  "Card #4 -> Candidate: Marie Curri (Ingenieria mecanica) [NOT in NotCow guide -> block test]",
+  "Card #5 -> Mystery Card: Ronda de inversion (+$300)",
   "Card #6 -> Mystery Card: Dato OIT #1 (Trivia +$100 via COBRAR=Si / BACK=No)",
 };
 
 const char* DUMMY_STEP_PROMPT_OLED[12] = {
   "1: P1 + Tarjeta #4",
-  "2: Presiona COBRAR",
-  "3: Escanea #5 Insgt",
+  "2: COBRAR y ATRAS=No",
+  "3: Escanea #1 Yoni",
   "4: Presiona COBRAR",
-  "5: Escanea #1 Rosa",
-  "6: Escanea #2 Tomas",
-  "7: Escanea #3 Joaq",
+  "5: Escanea #3 Sergio",
+  "6: Escanea #2 Ray",
+  "7: Escanea #5 Mist.",
   "8: Presiona COBRAR",
-  "9: Escanea #2 Tomas",
+  "9: COBRAR y $=Si",
   "10: #6 + COBRAR(Si)",
   "11: Presiona ATRAS",
   "TEST OK! Modo libre",
@@ -200,22 +224,22 @@ void printDummyStepPrompt() {
     Serial.println(F("\n=================================================="));
     Serial.println(F("  ALL 11 GUIDED FLOW STEPS PASSED!"));
     Serial.println(F("  Console is now in FREE-PLAY mode with your 6 cards."));
-    Serial.println(F("  Try P2/P3 to test exclusivity or keep playing to level 12!"));
+    Serial.println(F("  Try P2/P3 to test exclusivity, or hire 5 roles to start the last round."));
     Serial.println(F("==================================================\n"));
     return;
   }
   Serial.println(F("\n>>> NEXT GUIDED TEST STEP:"));
   switch (dummy_step) {
-    case 0: Serial.println(F("  [STEP 1/11] Press button P1 (Ruedas Verdes), then tap Card #4 (Lucia - NOT in P1 guide). Expect: BLOCKED.")); break;
-    case 1: Serial.println(F("  [STEP 2/11] Press button COBRAR before buying anything. Expect: BLOCKED (not eligible yet).")); break;
-    case 2: Serial.println(F("  [STEP 3/11] Tap Card #5 (Insight: Taller Mecanico). Expect: -$50 ($450 left), shows OIT 0.32 -> Humano, enables Cobrar.")); break;
-    case 3: Serial.println(F("  [STEP 4/11] Press button COBRAR at level 0. Expect: +$100 ($100 base + $100*0 -> $550), disables Cobrar.")); break;
-    case 4: Serial.println(F("  [STEP 5/11] Tap Card #1 (Rosa Quispe, Humano $200, +3). Expect: -$200 ($350), Level 0 -> 3.")); break;
-    case 5: Serial.println(F("  [STEP 6/11] Immediately tap Card #2 (Tomas Fuentes, SAME role). Expect: BLOCKED by replacement cooldown!")); break;
-    case 6: Serial.println(F("  [STEP 7/11] Tap Card #3 (Joaquin Herrera, Fotografo H+IA $300, +3). Expect: -$300 ($50), Level 3 -> 6.")); break;
-    case 7: Serial.println(F("  [STEP 8/11] Press button COBRAR at level 6. Expect: +$700 ($100 + $100*6 -> $750).")); break;
-    case 8: Serial.println(F("  [STEP 9/11] Tap Card #2 (Tomas Fuentes) again now that another role was hired. Expect: REPLACED! -$300 ($450), Level 6-3+2 = 5.")); break;
-    case 9: Serial.println(F("  [STEP 10/11] Tap Card #6 (Dato OIT Trivia), then press COBRAR (=Si). Expect: +$100 ($550).")); break;
+    case 0: Serial.println(F("  [STEP 1/11] Press button P1 (NotCow), then tap Card #4 (Marie Curri - NOT in NotCow guide). Expect: BLOCKED.")); break;
+    case 1: Serial.println(F("  [STEP 2/11] Press COBRAR before hiring anything. Expect: asks 'Entraste a una sala?'. Press ATRAS (=No): $0.")); break;
+    case 2: Serial.println(F("  [STEP 3/11] Tap Card #1 (Yoni Aiv, Humano $200, +3). Expect: -$200 ($300), Level 2 -> 5.")); break;
+    case 3: Serial.println(F("  [STEP 4/11] Press COBRAR at level 5. Expect: +$500 (5 x $100 -> $800), no question asked.")); break;
+    case 4: Serial.println(F("  [STEP 5/11] Tap Card #3 (Sergio Larrayn, Fotografia H+IA $300, +3). Expect: -$300 ($500), Level 5 -> 8.")); break;
+    case 5: Serial.println(F("  [STEP 6/11] Tap Card #2 (Ray Eims, SAME role as Yoni). Expect: REPLACED! -$300 ($200), Level 8-3+2 = 7.")); break;
+    case 6: Serial.println(F("  [STEP 7/11] Tap Card #5 (Misterio: Ronda de inversion). Expect: +$300 ($500).")); break;
+    case 7: Serial.println(F("  [STEP 8/11] Press COBRAR at level 7. Expect: +$700 ($1200).")); break;
+    case 8: Serial.println(F("  [STEP 9/11] Press COBRAR again. Expect: asks 'Entraste a una sala?'. Press COBRAR (=Si): +$700 ($1900).")); break;
+    case 9: Serial.println(F("  [STEP 10/11] Tap Card #6 (Dato OIT Trivia), then press COBRAR (=Si). Expect: +$100 ($2000).")); break;
     case 10: Serial.println(F("  [STEP 11/11] Press button ATRAS/CANCELAR to return to the 3-startup Leaderboard on OLED.")); break;
   }
 }
@@ -299,15 +323,44 @@ uint32_t uidToHash(const MFRC522::Uid& uid) {
   return hash;
 }
 
-// Returns true (and the UID) when a new card was tapped. Halts the card so it is
-// not re-read until it is removed and presented again.
-bool readCard(uint32_t& uid_out) {
+// Scan cooldown: a card with weak coupling (e.g. through the acrylic) can drop
+// out of the RF field and re-enter it, which the RC522 reports as a brand-new
+// tap. Any read less than SCAN_COOLDOWN_MS after the previous read is treated
+// as the same tap and ignored. Ignored reads also restart the window, so a card
+// resting/flickering on the reader never fires twice; it must be lifted away
+// for at least SCAN_COOLDOWN_MS before it counts again.
+constexpr uint32_t SCAN_COOLDOWN_MS = 1000;
+uint32_t last_read_uid = 0;
+uint32_t last_read_ms = 0;
+bool has_last_read = false;
+
+enum ScanCooldown : uint8_t {
+  COOLDOWN_ANY_CARD = 0,  // gameplay: any read within 1 s is ignored
+  COOLDOWN_SAME_CARD,     // admin: only the same UID within 1 s is ignored
+};
+
+// Returns true (and the UID) when a genuinely new tap happened. Halts the card
+// so it is not re-read while it stays in the field.
+bool readCard(uint32_t& uid_out, ScanCooldown mode = COOLDOWN_ANY_CARD) {
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return false;
-  uid_out = uidToHash(rfid.uid);
+  uint32_t uid = uidToHash(rfid.uid);
   rfid.PICC_HaltA();
   rfid.PCD_StopCrypto1();
-  Serial.printf("UID escaneado: 0x%08lX\n", static_cast<unsigned long>(uid_out));
-  return uid_out != 0;
+
+  uint32_t now = millis();
+  bool within_window = has_last_read && (now - last_read_ms) < SCAN_COOLDOWN_MS;
+  bool repeated = within_window && (mode == COOLDOWN_ANY_CARD || uid == last_read_uid);
+  last_read_uid = uid;
+  last_read_ms = now;
+  has_last_read = true;
+
+  if (repeated || uid == 0) {
+    Serial.printf("(lectura repetida ignorada: 0x%08lX)\n", static_cast<unsigned long>(uid));
+    return false;
+  }
+  uid_out = uid;
+  Serial.printf("UID escaneado: 0x%08lX\n", static_cast<unsigned long>(uid));
+  return true;
 }
 
 // ============================================================================
@@ -490,21 +543,23 @@ void renderScreen() {
     display.fillRect(0, 0, 128, 12, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
     display.setCursor(3, 2);
-    display.print(F("HEADHUNTERS  META:12"));
+    display.print(last_round_by >= 0 ? F("HEADHUNTERS ULT.RONDA") : F("HEADHUNTERS"));
     display.setTextColor(SH110X_WHITE);
 
     for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
       int y = 16 + p * 12;
       display.setCursor(0, y);
-      display.print(COMPANY_SHORT[p]);
-      display.drawRect(16, y, 52, 8, SH110X_WHITE);
-      uint8_t clamped = min<uint8_t>(players[p].profitability, WIN_PROFITABILITY_TARGET);
-      int fill_w = (clamped * 48) / WIN_PROFITABILITY_TARGET;
-      if (fill_w > 0) display.fillRect(18, y + 2, fill_w, 4, SH110X_WHITE);
-      display.setCursor(71, y);
+      display.print(COMPANY_SHORT(p));
+      display.drawRect(15, y, 40, 8, SH110X_WHITE);
+      uint8_t clamped = min<uint8_t>(players[p].profitability, MAX_PROFITABILITY);
+      int fill_w = (clamped * 36) / MAX_PROFITABILITY;
+      if (fill_w > 0) display.fillRect(17, y + 2, fill_w, 4, SH110X_WHITE);
+      display.setCursor(58, y);
       display.printf("%2u", players[p].profitability);
-      display.setCursor(89, y);
-      display.printf("$%-4d", players[p].money);
+      display.setCursor(73, y);
+      display.printf("%u/%u", countHiredRoles(p), ROLES_PER_COMPANY);
+      display.setCursor(98, y);
+      display.printf("$%d", players[p].money);
     }
 
     display.drawLine(0, 52, 127, 52, SH110X_WHITE);
@@ -512,23 +567,23 @@ void renderScreen() {
 #ifdef DUMMY_FLOW_TEST
     display.print(DUMMY_STEP_PROMPT_OLED[dummy_step]);
 #else
-    display.print(F("Turno: P1  P2  P3"));
+    display.print(last_round_by >= 0 ? F("P1-P3 turno [$]Fin") : F("Turno: P1  P2  P3"));
 #endif
   } else if (console_state == STATE_PLAYER_SELECTED && active_player >= 0) {
     const PlayerState& ps = players[active_player];
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
     display.setCursor(3, 3);
-    display.print(COMPANY_ASCII[active_player]);
+    display.print(COMPANY_ASCII(active_player));
+    if (last_round_by >= 0) display.print(F(" ULT.RONDA"));
     display.setTextColor(SH110X_WHITE);
 
     display.setCursor(0, 17);
-    display.printf("Plata: $%-4d Nv:%2u/12", ps.money, ps.profitability);
+    display.printf("Plata:$%-5d Nivel:%u", ps.money, ps.profitability);
     display.setCursor(0, 29);
-    display.printf("Cargos:%u/5 Cobro:%s", countHiredRoles(active_player),
-                   ps.eligible_for_payout ? "SI" : "NO");
+    display.printf("Cargos: %u/%u", countHiredRoles(active_player), ROLES_PER_COMPANY);
     display.setCursor(0, 41);
-    display.print(F("Acerca tarjeta NFC"));
+    display.print(F("Acerca tu tarjeta"));
     display.drawLine(0, 52, 127, 52, SH110X_WHITE);
     display.setCursor(0, 55);
 #ifdef DUMMY_FLOW_TEST
@@ -552,28 +607,84 @@ void renderScreen() {
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
     display.setCursor(3, 3);
-    display.print(F("DATO OIT (+$100)"));
+    display.printf("DATO OIT (+$%d)", TRIVIA_REWARD);
     display.setTextColor(SH110X_WHITE);
     display.setCursor(0, 20); display.print(F("Acerto la respuesta?"));
     display.setCursor(0, 36); display.print(F("[$] COBRAR = SI"));
     display.setCursor(0, 48); display.print(F("[<-] ATRAS  = NO"));
+  } else if (console_state == STATE_WAIT_PAYOUT_CONFIRM && active_player >= 0) {
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("COBRO RECEPCION"));
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(0, 17); display.print(F("Entraste a una sala"));
+    display.setCursor(0, 27); display.print(F("desde tu ult. cobro?"));
+    display.setCursor(0, 41);
+    display.printf("[$] SI  +$%d", players[active_player].profitability * RECEPTION_PAYOUT_PER_LEVEL);
+    display.setCursor(0, 53); display.print(F("[<-] NO"));
   } else if (console_state == STATE_WAIT_RETURN_SCAN) {
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
     display.setCursor(3, 3);
-    display.print(F("REESTRUCTURACION"));
+    display.print(return_forced ? F("NO TE ALCANZA") : F("REESTRUCTURACION"));
     display.setTextColor(SH110X_WHITE);
-    display.setCursor(0, 20); display.print(F("Escanea tu postulante"));
-    display.setCursor(0, 32); display.print(F("a devolver (+50% $)"));
-    display.setCursor(0, 52); display.print(F("[<-] Cancelar"));
+    display.setCursor(0, 20); display.print(F("Escanea la tarjeta"));
+    display.setCursor(0, 32);
+    display.print(return_forced ? F("que devuelves (sin $)") : F("a devolver (+50% $)"));
+    if (!return_forced) { display.setCursor(0, 52); display.print(F("[<-] Cancelar")); }
+  } else if (console_state == STATE_WAIT_AUDIT_CHOICE) {
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("AUDITORIA"));
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(0, 17); display.print(F("Tienes una IA sola +1"));
+    display.setCursor(0, 31); display.printf("[$] Pagar $%d", pending_audit_fine);
+    display.setCursor(0, 43); display.print(F("[<-] Devolver la IA"));
+    display.setCursor(0, 53); display.print(F("     (sin reembolso)"));
+  } else if (console_state == STATE_WAIT_SWAP_MINE || console_state == STATE_WAIT_SWAP_THEIRS) {
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("FUGA DE TALENTO"));
+    display.setTextColor(SH110X_WHITE);
+    if (console_state == STATE_WAIT_SWAP_MINE) {
+      display.setCursor(0, 18); display.print(F("1) Escanea TU tarjeta"));
+      display.setCursor(0, 30); display.print(F("a intercambiar."));
+    } else {
+      char who[22];
+      asciiFold(CANDIDATES[swap_my_cand].name, who, sizeof(who));
+      display.setCursor(0, 17); display.print(who);
+      display.setCursor(0, 28); display.print(F("2) Escanea la del"));
+      display.setCursor(0, 38); display.print(F("rival, mismo cargo."));
+    }
+    display.setCursor(0, 53); display.print(F("[<-] Cancelar"));
+  } else if (console_state == STATE_CONFIRM_END_GAME) {
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("FIN DE LA PARTIDA?"));
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(0, 18); display.print(F("Termino la ultima"));
+    display.setCursor(0, 28); display.print(F("ronda para todos?"));
+    display.setCursor(0, 42); display.print(F("[$] Si, ver ganador"));
+    display.setCursor(0, 53); display.print(F("[<-] No, seguir"));
   } else if (console_state == STATE_GAME_OVER && winner_player >= 0) {
-    display.drawRect(0, 0, 128, 64, SH110X_WHITE);
-    display.setCursor(20, 8);  display.print(F("*** VICTORIA! ***"));
-    display.setCursor(10, 24); display.print(COMPANY_ASCII[winner_player]);
-    display.setCursor(10, 37); display.printf("Nivel: %u/12  $%d",
-                                              players[winner_player].profitability,
-                                              players[winner_player].money);
-    display.setCursor(10, 51); display.print(F("[<-] Nueva partida"));
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("GANA "));
+    display.print(COMPANY_ASCII(winner_player));
+    display.print('!');
+    display.setTextColor(SH110X_WHITE);
+    for (uint8_t r = 0; r < NUM_PLAYERS; ++r) {
+      uint8_t p = final_rank[r];
+      display.setCursor(0, 17 + r * 11);
+      display.printf("%u.%-8s Nv%2u $%d", r + 1, COMPANY_ASCII(p), players[p].profitability,
+                     players[p].money);
+    }
+    display.setCursor(0, 54); display.print(F("[<-] Nueva partida"));
   }
 
   display.display();
@@ -598,7 +709,6 @@ void resetGame() {
   for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
     players[p].money = STARTING_MONEY;
     players[p].profitability = STARTING_PROFITABILITY;
-    players[p].last_hired_occupation_id = -1;
     players[p].next_hire_discount = 0;
     players[p].upgrade_human_ready = false;
     players[p].eligible_for_payout = false;
@@ -611,7 +721,12 @@ void resetGame() {
   }
   active_player = -1;
   winner_player = -1;
+  last_round_by = -1;
   pending_trivia_reward = 0;
+  return_forced = false;
+  return_low_ia_only = false;
+  pending_audit_fine = 0;
+  swap_my_cand = -1;
   console_state = STATE_IDLE_LEADERBOARD;
 }
 
@@ -644,26 +759,76 @@ int8_t findRequiredSlot(uint8_t player_idx, uint8_t occupation_id) {
 void printLeaderboard() {
   Serial.println(F("=== LEADERBOARD ==="));
   for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
-    Serial.printf("  %s | Nivel: %2u/%u | Plata: $%d | Cargos: %u/5 | Cobro: %s\n",
-                  COMPANY_ASCII[p],
+    Serial.printf("  %-8s | Nivel: %2u | Plata: $%d | Cargos: %u/%u | Visito sala: %s\n",
+                  COMPANY_ASCII(p),
                   players[p].profitability,
-                  WIN_PROFITABILITY_TARGET,
                   players[p].money,
-                  countHiredRoles(p),
-                  players[p].eligible_for_payout ? "SI" : "NO");
+                  countHiredRoles(p), ROLES_PER_COMPANY,
+                  players[p].eligible_for_payout ? "SI" : "?");
+  }
+  if (last_round_by >= 0) {
+    Serial.printf("  ** ULTIMA RONDA (la inicio %s). Al terminar: COBRAR sin jugador = Fin. **\n",
+                  COMPANY_ASCII(last_round_by));
   }
 }
 
-bool checkVictory(uint8_t player_idx) {
-  if (players[player_idx].profitability >= WIN_PROFITABILITY_TARGET) {
-    winner_player = static_cast<int8_t>(player_idx);
-    console_state = STATE_GAME_OVER;
-    Serial.printf("VICTORIA! Gano %s (Nivel %u)\n",
-                  COMPANY_ASCII[player_idx], players[player_idx].profitability);
-    beepWin();
-    renderScreen();
+// Called after a hire: the first player to complete all roles starts the last round.
+bool maybeStartLastRound(uint8_t player_idx) {
+  if (last_round_by >= 0 || countHiredRoles(player_idx) < ROLES_PER_COMPANY) return false;
+  last_round_by = static_cast<int8_t>(player_idx);
+  Serial.printf("%s completo sus %u cargos -> ULTIMA RONDA para todos.\n",
+                COMPANY_ASCII(player_idx), ROLES_PER_COMPANY);
+  return true;
+}
+
+// Highest profitability wins; ties broken by money.
+void endGame() {
+  for (uint8_t i = 0; i < NUM_PLAYERS; ++i) final_rank[i] = i;
+  for (uint8_t i = 1; i < NUM_PLAYERS; ++i) {
+    for (uint8_t j = i; j > 0; --j) {
+      const PlayerState& a = players[final_rank[j]];
+      const PlayerState& b = players[final_rank[j - 1]];
+      bool better = a.profitability > b.profitability ||
+                    (a.profitability == b.profitability && a.money > b.money);
+      if (!better) break;
+      uint8_t t = final_rank[j]; final_rank[j] = final_rank[j - 1]; final_rank[j - 1] = t;
+    }
+  }
+  winner_player = static_cast<int8_t>(final_rank[0]);
+  active_player = -1;
+  console_state = STATE_GAME_OVER;
+  Serial.println(F("=== FIN DE LA PARTIDA ==="));
+  for (uint8_t r = 0; r < NUM_PLAYERS; ++r) {
+    uint8_t p = final_rank[r];
+    Serial.printf("  %u. %s | Nivel %u | $%d\n", r + 1, COMPANY_ASCII(p),
+                  players[p].profitability, players[p].money);
+  }
+  const PlayerState& w = players[final_rank[0]];
+  const PlayerState& s2 = players[final_rank[1]];
+  if (w.profitability == s2.profitability && w.money == s2.money) {
+    Serial.println(F("  (Empate exacto en nivel y dinero.)"));
+  }
+  beepWin();
+  renderScreen();
+}
+
+// Charge `amount`. If the player can't pay, they must hand back one hired card
+// with no refund instead (or lose what they have if they hired nobody).
+// Returns true if the money was paid; false if a return scan is now pending.
+bool chargeOrForceReturn(uint8_t player_idx, int16_t amount) {
+  PlayerState& ps = players[player_idx];
+  if (amount <= 0 || ps.money >= amount) {
+    ps.money -= max<int16_t>(0, amount);
     return true;
   }
+  if (countHiredRoles(player_idx) == 0) {
+    ps.money = 0;
+    return true;
+  }
+  Serial.printf("%s no puede pagar $%d (tiene $%d): devuelve una tarjeta sin reembolso.\n",
+                COMPANY_ASCII(player_idx), amount, ps.money);
+  return_forced = true;
+  console_state = STATE_WAIT_RETURN_SCAN;
   return false;
 }
 
@@ -678,10 +843,10 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
   if (slot < 0) {
     Serial.println(F("BLOQUEADO: Ese cargo no pertenece a la guia de tu startup."));
     beepErr();
-    showFeedback("BLOQUEADO!", "Cargo fuera de tu", "guia de startup.", COMPANY_ASCII[player_idx],
+    showFeedback("BLOQUEADO!", "Cargo fuera de tu", "guia de startup.", COMPANY_ASCII(player_idx),
                  STATE_PLAYER_SELECTED);
 #ifdef DUMMY_FLOW_TEST
-    if (player_idx == 0 && cand_idx == 12) advanceDummyStep(0);
+    if (player_idx == 0 && cand_idx == 0) advanceDummyStep(0);
 #endif
     return;
   }
@@ -694,22 +859,17 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
   }
 
   int8_t prev_idx = ps.hired_candidate_by_slot[slot];
+  if (prev_idx == static_cast<int8_t>(cand_idx)) {
+    beepErr();
+    showFeedback("YA ES TUYO", cand.name, "Ya trabaja en tu", "startup.", STATE_PLAYER_SELECTED);
+    return;
+  }
+
+  // Replacing a role costs the full price of the new card (old one goes back, no refund).
   bool is_replacement = (prev_idx >= 0);
   bool is_upgrade = is_replacement && ps.upgrade_human_ready &&
                     CANDIDATES[prev_idx].modality == MOD_HUMANO &&
                     cand.modality == MOD_HUMANO_IA;
-
-  if (is_replacement && !is_upgrade &&
-      ps.last_hired_occupation_id == static_cast<int8_t>(cand.occupation_id)) {
-    Serial.println(F("BLOQUEADO: Debes contratar otro cargo antes de reemplazar este."));
-    beepErr();
-    showFeedback("COOLDOWN!", "Contrata otro cargo", "antes de reemplazar", "esta ocupacion.",
-                 STATE_PLAYER_SELECTED);
-#ifdef DUMMY_FLOW_TEST
-    if (player_idx == 0 && cand_idx == 1) advanceDummyStep(5);
-#endif
-    return;
-  }
 
   int16_t final_cost = cand.cost;
   if (is_upgrade) {
@@ -739,32 +899,36 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
   ps.money -= final_cost;
   ps.profitability += cand.profitability;
   ps.hired_candidate_by_slot[slot] = static_cast<int8_t>(cand_idx);
-  ps.last_hired_occupation_id = static_cast<int8_t>(cand.occupation_id);
-  ps.eligible_for_payout = true;
+  ps.eligible_for_payout = true;  // hiring means you entered a room
   candidate_taken[cand_idx] = true;
+  bool last_round_started = maybeStartLastRound(player_idx);
 
   char name_ascii[32];
   asciiFold(cand.name, name_ascii, sizeof(name_ascii));
-  Serial.printf("%s %s %s (%s, $%d) -> Nivel: %u/12 | Saldo: $%d\n",
-                COMPANY_ASCII[player_idx],
+  Serial.printf("%s %s %s (%s, $%d) -> Nivel: %u | Cargos: %u/%u | Saldo: $%d\n",
+                COMPANY_ASCII(player_idx),
                 is_replacement ? "reemplazo por" : "contrato a",
                 name_ascii, modalityLabel(cand.modality), final_cost,
-                ps.profitability, ps.money);
-  beepOk();
+                ps.profitability, countHiredRoles(player_idx), ROLES_PER_COMPANY, ps.money);
   printLeaderboard();
-
-  if (checkVictory(player_idx)) return;
 
   char l2[32], l3[32];
   snprintf(l2, sizeof(l2), "%s -$%d", modalityLabel(cand.modality), final_cost);
-  snprintf(l3, sizeof(l3), "+%u rent (Nv:%u/12)", cand.profitability, ps.profitability);
-  showFeedback(is_replacement ? "REEMPLAZADO!" : "CONTRATADO!", cand.name, l2, l3,
-               STATE_PLAYER_SELECTED);
+  if (last_round_started) {
+    beepWin();
+    snprintf(l3, sizeof(l3), "+%u Nv:%u ULT.RONDA!", cand.profitability, ps.profitability);
+    showFeedback("5/5 CARGOS!", cand.name, l2, l3, STATE_PLAYER_SELECTED);
+  } else {
+    beepOk();
+    snprintf(l3, sizeof(l3), "+%u rentab. (Nv:%u)", cand.profitability, ps.profitability);
+    showFeedback(is_replacement ? "REEMPLAZADO!" : "CONTRATADO!", cand.name, l2, l3,
+                 STATE_PLAYER_SELECTED);
+  }
 
 #ifdef DUMMY_FLOW_TEST
-  if (player_idx == 0 && cand_idx == 0) advanceDummyStep(4);
-  if (player_idx == 0 && cand_idx == 7) advanceDummyStep(6);
-  if (player_idx == 0 && cand_idx == 1 && is_replacement) advanceDummyStep(8);
+  if (player_idx == 0 && cand_idx == 3) advanceDummyStep(2);
+  if (player_idx == 0 && cand_idx == 7) advanceDummyStep(4);
+  if (player_idx == 0 && cand_idx == 4 && is_replacement) advanceDummyStep(5);
 #endif
 }
 
@@ -775,54 +939,137 @@ void handleCandidateReturn(uint8_t player_idx, uint8_t cand_idx) {
   if (slot < 0 || ps.hired_candidate_by_slot[slot] != static_cast<int8_t>(cand_idx)) {
     Serial.println(F("Ese postulante no pertenece a tu equipo."));
     beepErr();
-    showFeedback("ERROR", "No es tu postulante.", "Escanea uno tuyo o", "presiona Cancelar.",
-                 STATE_WAIT_RETURN_SCAN);
+    showFeedback("ERROR", "No es tu postulante.", "Escanea uno tuyo o",
+                 return_forced ? "" : "presiona Cancelar.", STATE_WAIT_RETURN_SCAN);
+    return;
+  }
+  if (return_low_ia_only && !(cand.modality == MOD_IA_SOLA && cand.profitability == 1)) {
+    beepErr();
+    showFeedback("ERROR", "Debes devolver tu", "IA sola de +1.", "", STATE_WAIT_RETURN_SCAN);
     return;
   }
 
   ps.hired_candidate_by_slot[slot] = -1;
   candidate_taken[cand_idx] = false;
   ps.profitability = max<int>(0, ps.profitability - cand.profitability);
-  int16_t refund = cand.cost / 2;
+  int16_t refund = return_forced ? 0 : cand.cost / 2;
   ps.money += refund;
+  return_forced = false;
+  return_low_ia_only = false;
 
   Serial.printf("Postulante devuelto (%s). Reembolso: +$%d | Nivel: %u\n", cand.name, refund, ps.profitability);
   beepOk();
   printLeaderboard();
 
   char l2[32], l3[32];
-  snprintf(l2, sizeof(l2), "Reembolso: +$%d", refund);
+  if (refund > 0) snprintf(l2, sizeof(l2), "Reembolso: +$%d", refund);
+  else            snprintf(l2, sizeof(l2), "Sin reembolso");
   snprintf(l3, sizeof(l3), "Nv:%u Saldo:$%d", ps.profitability, ps.money);
   showFeedback("DEVUELTO", cand.name, l2, l3, STATE_PLAYER_SELECTED);
 }
 
+// Occupation card (Insight): pay to see the role's OIT score and best modality.
 void handleInsightScan(uint8_t player_idx, uint8_t occ_idx) {
   PlayerState& ps = players[player_idx];
+  const OccupationDef& occ = OCCUPATIONS[occ_idx];
   if (ps.money < INSIGHT_COST) {
-    Serial.println(F("Dinero insuficiente para comprar insight."));
+    Serial.println(F("Dinero insuficiente para el insight."));
     beepErr();
-    showFeedback("SIN DINERO!", "Insight cuesta $50.", "", "", STATE_PLAYER_SELECTED);
+    char l1[22];
+    snprintf(l1, sizeof(l1), "Insight cuesta $%d.", INSIGHT_COST);
+    showFeedback("SIN DINERO!", l1, "", "", STATE_PLAYER_SELECTED);
     return;
   }
   ps.money -= INSIGHT_COST;
-  ps.eligible_for_payout = true;
 
-  const OccupationDef& occ = OCCUPATIONS[occ_idx];
-  Serial.printf("INSIGHT (-$%d): %s | OIT %.2f (%s) | Ideal: %s | Saldo: $%d\n",
-                INSIGHT_COST, occ.role, occ.oit_score, occ.oit_level,
+  char cargo[32];
+  asciiFold(occ.cargo, cargo, sizeof(cargo));
+  Serial.printf("INSIGHT (-$%d): %s | OIT %.2f (%s) | Rinde mas: %s | Saldo: $%d\n",
+                INSIGHT_COST, cargo, occ.oit_score, occ.oit_level,
                 modalityLabel(occ.ideal_modality), ps.money);
   beepOk();
   printLeaderboard();
 
-  char l2[32], l3[32];
-  snprintf(l2, sizeof(l2), "OIT %.2f (%s)", occ.oit_score, occ.oit_level);
-  snprintf(l3, sizeof(l3), "Ideal: %s", modalityLabel(occ.ideal_modality));
-  showFeedback("INSIGHT -$50", occ.room, l2, l3, STATE_PLAYER_SELECTED);
-
-#ifdef DUMMY_FLOW_TEST
-  if (player_idx == 0 && occ_idx == 0) advanceDummyStep(2);
-#endif
+  char title[22], l2[32], l3[32];
+  snprintf(title, sizeof(title), "INSIGHT -$%d", INSIGHT_COST);
+  snprintf(l2, sizeof(l2), "OIT %.2f %s", occ.oit_score, occ.oit_level);
+  if (strlen(l2) > 21) snprintf(l2, sizeof(l2), "OIT %.2f", occ.oit_score);
+  snprintf(l3, sizeof(l3), "Rinde mas: %s", modalityLabel(occ.ideal_modality));
+  showFeedback(title, occ.cargo, l2, l3, STATE_PLAYER_SELECTED);
 }
+
+// Owner (player index) of a hired candidate, or -1.
+int8_t candidateOwner(uint8_t cand_idx) {
+  for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
+    for (uint8_t s = 0; s < ROLES_PER_COMPANY; ++s) {
+      if (players[p].hired_candidate_by_slot[s] == static_cast<int8_t>(cand_idx)) return p;
+    }
+  }
+  return -1;
+}
+
+// Fuga de talento is possible if another player hired someone for a role you also hired.
+bool swapPossible(uint8_t player_idx) {
+  for (uint8_t s = 0; s < ROLES_PER_COMPANY; ++s) {
+    int8_t mine = players[player_idx].hired_candidate_by_slot[s];
+    if (mine < 0) continue;
+    uint8_t occ = CANDIDATES[mine].occupation_id;
+    for (uint8_t q = 0; q < NUM_PLAYERS; ++q) {
+      if (q == player_idx) continue;
+      int8_t qs = findRequiredSlot(q, occ);
+      if (qs >= 0 && players[q].hired_candidate_by_slot[qs] >= 0) return true;
+    }
+  }
+  return false;
+}
+
+void handleSwapScan(uint8_t player_idx, uint8_t cand_idx) {
+  const CandidateDef& cand = CANDIDATES[cand_idx];
+  if (swap_my_cand < 0) {
+    if (candidateOwner(cand_idx) != static_cast<int8_t>(player_idx)) {
+      beepErr();
+      showFeedback("ERROR", "No es tu postulante.", "Escanea uno tuyo.", "", STATE_WAIT_SWAP_MINE);
+      return;
+    }
+    swap_my_cand = static_cast<int8_t>(cand_idx);
+    beepTick();
+    console_state = STATE_WAIT_SWAP_THEIRS;
+    renderScreen();
+    return;
+  }
+  const CandidateDef& mine = CANDIDATES[swap_my_cand];
+  int8_t owner = candidateOwner(cand_idx);
+  if (owner < 0 || owner == static_cast<int8_t>(player_idx) ||
+      cand.occupation_id != mine.occupation_id) {
+    beepErr();
+    showFeedback("ERROR", "Debe ser de otro", "jugador y del mismo", "cargo que el tuyo.",
+                 STATE_WAIT_SWAP_THEIRS);
+    return;
+  }
+  PlayerState& me = players[player_idx];
+  PlayerState& them = players[owner];
+  int8_t my_slot = findRequiredSlot(player_idx, mine.occupation_id);
+  int8_t their_slot = findRequiredSlot(owner, cand.occupation_id);
+  me.hired_candidate_by_slot[my_slot] = static_cast<int8_t>(cand_idx);
+  them.hired_candidate_by_slot[their_slot] = swap_my_cand;
+  me.profitability = me.profitability - mine.profitability + cand.profitability;
+  them.profitability = them.profitability - cand.profitability + mine.profitability;
+
+  char a[22], b[22];
+  asciiFold(mine.name, a, sizeof(a));
+  asciiFold(cand.name, b, sizeof(b));
+  Serial.printf("Fuga de talento: %s (%s) <-> %s (%s)\n", a, COMPANY_ASCII(player_idx), b,
+                COMPANY_ASCII(owner));
+  swap_my_cand = -1;
+  beepOk();
+  printLeaderboard();
+  char l3[32];
+  snprintf(l3, sizeof(l3), "Nv: tu %u / %s %u", me.profitability, COMPANY_SHORT(owner),
+           them.profitability);
+  showFeedback("INTERCAMBIO!", a, b, l3, STATE_PLAYER_SELECTED);
+}
+
+void payReception(uint8_t player_idx);
 
 void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
   PlayerState& ps = players[player_idx];
@@ -838,6 +1085,9 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       snprintf(l3, sizeof(l3), "Saldo: $%d", ps.money);
       beepOk();
       showFeedback("MISTERIO", card.title, l2, l3, STATE_PLAYER_SELECTED);
+#ifdef DUMMY_FLOW_TEST
+      if (player_idx == 0 && card_idx == 0) advanceDummyStep(6);
+#endif
       break;
     case MYS_BONUS_PER_MODALITY: {
       int count = 0;
@@ -860,10 +1110,14 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
         if (ci >= 0 && CANDIDATES[ci].modality == card.target_modality) count++;
       }
       int16_t delta = count * card.value;
-      ps.money = max<int16_t>(0, ps.money - delta);
+      beepErr();
+      if (!chargeOrForceReturn(player_idx, delta)) {
+        snprintf(l2, sizeof(l2), "Multa $%d: no", delta);
+        showFeedback("MISTERIO", card.title, l2, "alcanza. Devuelve 1", STATE_WAIT_RETURN_SCAN);
+        return;
+      }
       snprintf(l2, sizeof(l2), "Multa: -$%d", delta);
       snprintf(l3, sizeof(l3), "Saldo: $%d", ps.money);
-      beepErr();
       showFeedback("MISTERIO", card.title, l2, l3, STATE_PLAYER_SELECTED);
       break;
     }
@@ -876,9 +1130,20 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
         }
       }
       if (count > 0) {
-        ps.money = max<int16_t>(0, ps.money - card.value);
-        snprintf(l2, sizeof(l2), "Multa IA +1: -$%d", card.value);
+        // Pay the fine or hand back the IA +1 (no refund). Can't pay -> must return it.
         beepErr();
+        return_low_ia_only = true;
+        if (ps.money < card.value) {
+          return_forced = true;
+          snprintf(l2, sizeof(l2), "Multa $%d: no", card.value);
+          showFeedback("AUDITORIA", l2, "alcanza. Devuelve", "tu IA sola +1.", STATE_WAIT_RETURN_SCAN);
+          return;
+        }
+        pending_audit_fine = card.value;
+        console_state = STATE_WAIT_AUDIT_CHOICE;
+        Serial.println(F("Auditoria: COBRAR = pagar la multa / ATRAS = devolver la IA sola +1."));
+        renderScreen();
+        return;
       } else {
         snprintf(l2, sizeof(l2), "Sin IA +1: $0 multa");
         beepOk();
@@ -894,11 +1159,23 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
                    STATE_PLAYER_SELECTED);
       break;
     case MYS_ENABLE_PAYOUT_RECEPTION:
-      ps.eligible_for_payout = true;
+      // "Ve directo a la Recepcion y cobra tu trimestre": pay it right away.
+      Serial.println(F("Pitch exitoso: ve a la Recepcion, cobras tu trimestre ahora."));
+      payReception(player_idx);
+      return;
+    case MYS_SWAP_CANDIDATE:
+      if (!swapPossible(player_idx)) {
+        beepOk();
+        showFeedback("FUGA DE TALENTO", "Nadie tiene un cargo", "igual al tuyo:", "no pasa nada.",
+                     STATE_PLAYER_SELECTED);
+        break;
+      }
+      swap_my_cand = -1;
+      console_state = STATE_WAIT_SWAP_MINE;
+      Serial.println(F("Fuga de talento: escanea tu tarjeta y luego la del rival (mismo cargo)."));
       beepOk();
-      showFeedback("PITCH EXITOSO!", "Ve a Recepcion y", "presiona COBRAR.", "",
-                   STATE_PLAYER_SELECTED);
-      break;
+      renderScreen();
+      return;
     case MYS_NEXT_HIRE_DISCOUNT:
       ps.next_hire_discount += card.value;
       beepOk();
@@ -912,6 +1189,13 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
                    STATE_PLAYER_SELECTED);
       break;
     case MYS_RETURN_CANDIDATE_HALF:
+      if (countHiredRoles(player_idx) == 0) {
+        beepOk();
+        showFeedback("REESTRUCTURACION", "No tienes a nadie", "contratado: no pasa", "nada.",
+                     STATE_PLAYER_SELECTED);
+        break;
+      }
+      return_forced = false;
       console_state = STATE_WAIT_RETURN_SCAN;
       Serial.println(F("Escanea el postulante que deseas devolver (o presiona Cancelar)."));
       beepOk();
@@ -919,8 +1203,9 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       return;
     case MYS_TRIVIA_CONFIRM:
       pending_trivia_reward = card.value;
+      Serial.printf("%s (respuesta al reverso de la carta)\n", card.title);
       console_state = STATE_WAIT_TRIVIA_CONFIRM;
-      Serial.println(F("Dato OIT: presiona COBRAR si acerto (+$100), o ATRAS/CANCELAR si fallo."));
+      Serial.println(F("Dato OIT: el jugador de la derecha pregunta. COBRAR si acerto, ATRAS si fallo."));
       beepOk();
       renderScreen();
       return;
@@ -933,37 +1218,42 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
   printLeaderboard();
 }
 
-void handleCobrar(uint8_t player_idx) {
+// Recepcion: $100 per profitability level, only if the player entered a room
+// since their last payout.
+void payReception(uint8_t player_idx) {
   PlayerState& ps = players[player_idx];
-  if (!ps.eligible_for_payout) {
-    Serial.println(F("BLOQUEADO: Debes comprar algo o sacar Pitch exitoso desde tu ultimo cobro."));
-    beepErr();
-    showFeedback("COBRO BLOQUEADO", "Compra un cargo,", "insight o Pitch", "antes de cobrar.",
-                 STATE_PLAYER_SELECTED);
-#ifdef DUMMY_FLOW_TEST
-    if (player_idx == 0 && dummy_step == 1) advanceDummyStep(1);
-#endif
-    return;
-  }
-  int16_t payout = RECEPTION_BASE_PAYOUT + (ps.profitability * RECEPTION_PAYOUT_PER_LEVEL);
+  int16_t payout = ps.profitability * RECEPTION_PAYOUT_PER_LEVEL;
   ps.money += payout;
   ps.eligible_for_payout = false;
 
-  Serial.printf("%s cobro +$%d ($%d base + %u*$%d) -> Saldo: $%d\n",
-                COMPANY_ASCII[player_idx], payout, RECEPTION_BASE_PAYOUT,
-                ps.profitability, RECEPTION_PAYOUT_PER_LEVEL, ps.money);
+  Serial.printf("%s cobro +$%d (%u x $%d) -> Saldo: $%d\n",
+                COMPANY_ASCII(player_idx), payout, ps.profitability,
+                RECEPTION_PAYOUT_PER_LEVEL, ps.money);
   beepOk();
   printLeaderboard();
 
   char l1[32], l2[32];
-  snprintf(l1, sizeof(l1), "+$%d (Nivel %u)", payout, ps.profitability);
+  snprintf(l1, sizeof(l1), "+$%d (%u x $%d)", payout, ps.profitability, RECEPTION_PAYOUT_PER_LEVEL);
   snprintf(l2, sizeof(l2), "Saldo total: $%d", ps.money);
   showFeedback("COBRO RECEPCION", l1, l2, "", STATE_PLAYER_SELECTED);
 
 #ifdef DUMMY_FLOW_TEST
-  if (player_idx == 0 && dummy_step == 3) advanceDummyStep(3);
-  if (player_idx == 0 && dummy_step == 7) advanceDummyStep(7);
+  if (player_idx == 0 && (dummy_step == 3 || dummy_step == 7 || dummy_step == 8)) {
+    advanceDummyStep(dummy_step);
+  }
 #endif
+}
+
+void handleCobrar(uint8_t player_idx) {
+  if (players[player_idx].eligible_for_payout) {
+    payReception(player_idx);
+    return;
+  }
+  // The console can't see the board: a hire proves a room visit, otherwise ask.
+  Serial.println(F("Cobro: entraste a una sala desde tu ultimo cobro? COBRAR=Si / ATRAS=No"));
+  beepTick();
+  console_state = STATE_WAIT_PAYOUT_CONFIRM;
+  renderScreen();
 }
 
 // ============================================================================
@@ -1037,7 +1327,9 @@ void adminStartWalk(bool missing_only) {
     int16_t s = registryUid(0) == 0 ? 0 : adminFindSlot(0, +1, true);
     if (s < 0) {
       beepOk();
-      adminMessage("TODO LISTO", "No faltan tarjetas.", "50/50 asignadas", ADM_MENU, 2000);
+      char all_line[22];
+      snprintf(all_line, sizeof(all_line), "%u/%u asignadas", NUM_CARDS, NUM_CARDS);
+      adminMessage("TODO LISTO", "No faltan tarjetas.", all_line, ADM_MENU, 2000);
       return;
     }
     adm_slot = static_cast<uint8_t>(s);
@@ -1121,7 +1413,8 @@ void adminLoop() {
 
   uint32_t uid = 0;
   bool scanned = false;
-  if (adm_screen == ADM_WALK || adm_screen == ADM_TEST) scanned = readCard(uid);
+  // Same-card cooldown only, so you can swap quickly to the next card while enrolling.
+  if (adm_screen == ADM_WALK || adm_screen == ADM_TEST) scanned = readCard(uid, COOLDOWN_SAME_CARD);
 
   switch (adm_screen) {
     case ADM_MENU:
@@ -1322,7 +1615,9 @@ void setup() {
   RegistrySource src = registryBegin();
   uint8_t assigned = registryCount();
   Serial.printf("Tarjetas NFC: %u/%u asignadas (fuente: %s)\n", assigned, NUM_CARDS,
-                src == REG_SOURCE_FLASH ? "memoria flash" : "game_data.h");
+                src == REG_SOURCE_FLASH ? "memoria flash"
+                : src == REG_SOURCE_COMPILED_IMPORTED ? "game_data.h nuevo (copiado a flash)"
+                : "game_data.h");
 
   resetGame();
 
@@ -1407,18 +1702,23 @@ void loop() {
         }
         renderScreen();
       }
-      delay(300);
     }
     return;
   }
 #endif
 
+  // A forced return (couldn't pay) must be resolved before anything else, even
+  // while its feedback screen is still showing.
+  ConsoleState effective_state =
+      console_state == STATE_SHOW_FEEDBACK ? state_after_feedback : console_state;
+  bool locked = return_forced || effective_state == STATE_WAIT_AUDIT_CHOICE;
+
   // Player selector buttons (P1, P2, P3)
-  for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
+  for (uint8_t p = 0; p < NUM_PLAYERS && !locked; ++p) {
     if (btnPressed(p)) {
       active_player = static_cast<int8_t>(p);
       console_state = STATE_PLAYER_SELECTED;
-      Serial.printf("Jugador activo: %s\n", COMPANY_ASCII[p]);
+      Serial.printf("Jugador activo: %s\n", COMPANY_ASCII(p));
       beepOk();
       renderScreen();
     }
@@ -1431,6 +1731,33 @@ void loop() {
       Serial.println(F("Trivia fallida: $0."));
       beepErr();
       showFeedback("DATO OIT", "Respuesta incorrecta", "Cobras $0.", "", STATE_PLAYER_SELECTED);
+    } else if (console_state == STATE_WAIT_PAYOUT_CONFIRM) {
+      Serial.println(F("Sin cobro: primero entra a una sala."));
+      beepErr();
+      showFeedback("SIN COBRO", "Entra a una sala", "antes de volver a", "Recepcion.",
+                   STATE_PLAYER_SELECTED);
+#ifdef DUMMY_FLOW_TEST
+      if (dummy_step == 1) advanceDummyStep(1);
+#endif
+    } else if (console_state == STATE_CONFIRM_END_GAME) {
+      console_state = STATE_IDLE_LEADERBOARD;
+      beepOk();
+      renderScreen();
+    } else if (console_state == STATE_WAIT_AUDIT_CHOICE) {
+      return_forced = true;  // return_low_ia_only is already set
+      pending_audit_fine = 0;
+      Serial.println(F("Auditoria: escanea tu IA sola +1 para devolverla."));
+      beepTick();
+      console_state = STATE_WAIT_RETURN_SCAN;
+      renderScreen();
+    } else if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
+      swap_my_cand = -1;
+      console_state = STATE_PLAYER_SELECTED;
+      Serial.println(F("Intercambio cancelado."));
+      beepOk();
+      renderScreen();
+    } else if (locked) {
+      beepErr();  // must hand back a card first
     } else if (console_state == STATE_WAIT_RETURN_SCAN) {
       console_state = STATE_PLAYER_SELECTED;
       Serial.println(F("Devolucion cancelada."));
@@ -1450,23 +1777,48 @@ void loop() {
 
   // COBRAR / CONFIRM button
   if (btnPressed(BTN_COBRAR)) {
-    if (console_state == STATE_WAIT_TRIVIA_CONFIRM && active_player >= 0) {
+    if (console_state == STATE_WAIT_AUDIT_CHOICE && active_player >= 0) {
+      PlayerState& ps = players[active_player];
+      ps.money -= pending_audit_fine;
+      Serial.printf("Auditoria: multa -$%d -> Saldo: $%d\n", pending_audit_fine, ps.money);
+      char l1[22], l2[22];
+      snprintf(l1, sizeof(l1), "Multa IA +1: -$%d", pending_audit_fine);
+      snprintf(l2, sizeof(l2), "Saldo: $%d", ps.money);
+      pending_audit_fine = 0;
+      return_low_ia_only = false;
+      beepOk();
+      printLeaderboard();
+      showFeedback("AUDITORIA", l1, l2, "", STATE_PLAYER_SELECTED);
+    } else if (locked) {
+      beepErr();  // must hand back a card first
+    } else if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
+      beepErr();  // scan the cards or cancel
+    } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM && active_player >= 0) {
       players[active_player].money += pending_trivia_reward;
       int16_t reward = pending_trivia_reward;
       pending_trivia_reward = 0;
       Serial.printf("Trivia correcta! +$%d -> Saldo: $%d\n", reward, players[active_player].money);
       beepOk();
       printLeaderboard();
-      char l2[22];
+      char l1[22], l2[22];
+      snprintf(l1, sizeof(l1), "+$%d Dato OIT", reward);
       snprintf(l2, sizeof(l2), "Saldo: $%d", players[active_player].money);
-      showFeedback("CORRECTO!", "+$100 Dato OIT", l2, "", STATE_PLAYER_SELECTED);
+      showFeedback("CORRECTO!", l1, l2, "", STATE_PLAYER_SELECTED);
 #ifdef DUMMY_FLOW_TEST
       if (dummy_step == 9) advanceDummyStep(9);
 #endif
+    } else if (console_state == STATE_WAIT_PAYOUT_CONFIRM && active_player >= 0) {
+      payReception(static_cast<uint8_t>(active_player));
+    } else if (console_state == STATE_CONFIRM_END_GAME) {
+      endGame();
     } else if (console_state == STATE_WAIT_RETURN_SCAN) {
       beepErr();  // must scan a candidate or cancel
     } else if (active_player >= 0) {
       handleCobrar(static_cast<uint8_t>(active_player));
+    } else if (last_round_by >= 0) {
+      beepTick();
+      console_state = STATE_CONFIRM_END_GAME;
+      renderScreen();
     } else {
       Serial.println(F("Selecciona un jugador primero (P1, P2 o P3)."));
       beepErr();
@@ -1486,15 +1838,24 @@ void loop() {
       beepErr();
       showFeedback("ELIGE JUGADOR", "Presiona P1, P2 o P3", "antes de escanear.", "",
                    STATE_IDLE_LEADERBOARD);
-    } else if (console_state == STATE_WAIT_RETURN_SCAN) {
+    } else if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
+      if (known && card.kind == CARD_CANDIDATE) {
+        handleSwapScan(static_cast<uint8_t>(active_player), card.index);
+      } else {
+        beepErr();
+      }
+    } else if (effective_state == STATE_WAIT_RETURN_SCAN) {
       if (known && card.kind == CARD_CANDIDATE) {
         handleCandidateReturn(static_cast<uint8_t>(active_player), card.index);
       } else {
         Serial.println(F("Escanea la tarjeta del postulante a devolver."));
         beepErr();
       }
-    } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM) {
-      beepErr();  // answer the trivia first (COBRAR = Si / ATRAS = No)
+    } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM ||
+               console_state == STATE_WAIT_PAYOUT_CONFIRM ||
+               console_state == STATE_CONFIRM_END_GAME ||
+               effective_state == STATE_WAIT_AUDIT_CHOICE) {
+      beepErr();  // answer the question first (COBRAR = Si / ATRAS = No)
     } else if (!known) {
       Serial.println(F("Tag no registrado. Asignalo en el modo admin."));
       beepErr();
@@ -1507,6 +1868,5 @@ void loop() {
     } else {
       handleMysteryScan(static_cast<uint8_t>(active_player), card.index);
     }
-    delay(250);
   }
 }

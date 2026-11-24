@@ -9,14 +9,16 @@
 // Card registry: which physical NFC tag (UID) means which game card.
 //
 // The 50 cards are addressed by a "slot" 0..49, in the same order and with the
-// same codes as scripts/enroll_cards.py:
-//   slots  0..23 -> C01..C24  Postulantes   (CANDIDATES[0..23])
-//   slots 24..31 -> I01..I08  Insights      (OCCUPATIONS[0..7])
-//   slots 32..49 -> M01..M18  Misterio      (MYSTERY_CARDS[0..17])
+// same codes as scripts/enroll_cards.py and webapp/:
+//   slots  0..23 -> C01..C24  Postulantes            (CANDIDATES[0..23])
+//   slots 24..31 -> I01..I08  Ocupaciones (Insight)  (OCCUPATIONS[0..7])
+//   slots 32..49 -> M01..M18  Misterio               (MYSTERY_CARDS[0..17])
 //
 // The mapping lives in ESP32 flash (NVS, namespace "hh_cards") and is edited
 // from the board itself in admin mode. Flashing new firmware does NOT erase it.
-// If flash has never been written, the UIDs compiled into game_data.h are used.
+// Exception: if the firmware is built with a NEW set of UIDs in game_data.h
+// (e.g. imported from the phone web app via scripts/import_uids.py), that set
+// replaces flash on the first boot. Later admin-mode edits are kept again.
 // ============================================================================
 
 constexpr uint8_t NUM_CARDS = NUM_CANDIDATES + NUM_OCCUPATIONS + NUM_MYSTERY_CARDS;
@@ -34,7 +36,8 @@ struct CardRef {
 
 enum RegistrySource : uint8_t {
   REG_SOURCE_FLASH = 0,
-  REG_SOURCE_COMPILED,
+  REG_SOURCE_COMPILED,           // game_data.h (flash empty, nothing to import)
+  REG_SOURCE_COMPILED_IMPORTED,  // new UIDs in game_data.h, copied over flash
 };
 
 CardRef cardRef(uint8_t slot);

@@ -9,6 +9,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "data" / "game_data.json"
 OUT_PATH = ROOT / "firmware" / "include" / "game_data.h"
+WEB_CARDS_PATH = ROOT / "webapp" / "cards.json"
+
+MODALITY_LABEL = {"H": "Humano", "H_IA": "Humano + IA", "IA": "IA sola"}
+
+EFFECT_LABEL = {
+    "ADD_MONEY": "Suma dinero",
+    "BONUS_PER_MODALITY": "Bono por modalidad",
+    "PENALTY_PER_MODALITY": "Multa por modalidad",
+    "PENALTY_LOW_IA": "Auditoría IA +1",
+    "FORCE_RECEPTION_NO_PAY": "Recepción sin cobro",
+    "ENABLE_PAYOUT_RECEPTION": "Habilita cobro",
+    "BOARD_INFO_ONLY": "Jugada en tablero",
+    "NEXT_HIRE_DISCOUNT": "Descuento próxima contratación",
+    "UPGRADE_HUMAN_TO_HYBRID": "Mejora Humano a Humano + IA",
+    "RETURN_CANDIDATE_HALF": "Devuelve un postulante",
+    "TRIVIA_CONFIRM": "Trivia Sí / No",
+    "SWAP_CANDIDATE": "Intercambia un postulante",
+}
 
 MODALITY_ENUM = {
     "H": "MOD_HUMANO",
@@ -28,12 +46,51 @@ MYSTERY_EFFECT_ENUM = {
     "UPGRADE_HUMAN_TO_HYBRID": "MYS_UPGRADE_HUMAN_TO_HYBRID",
     "RETURN_CANDIDATE_HALF": "MYS_RETURN_CANDIDATE_HALF",
     "TRIVIA_CONFIRM": "MYS_TRIVIA_CONFIRM",
+    "SWAP_CANDIDATE": "MYS_SWAP_CANDIDATE",
 }
 
 
 def c_str(text: str) -> str:
     escaped = text.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
+
+
+def build_web_cards(data: dict) -> list[dict]:
+    """Card list for webapp/ in firmware slot order, with the same codes as enroll_cards.py."""
+    occ_by_id = {o["id"]: o for o in data["occupations"]}
+    modality_cost = {m["id"]: m for m in data["modalities"]}
+    cards: list[dict] = []
+    for i, c in enumerate(data["candidates"], start=1):
+        occ = occ_by_id[c["occupation_id"]]
+        cards.append({
+            "code": f"C{i:02d}", "kind": "candidate", "index": i - 1,
+            "title": c["name"],
+            "subtitle": f"{c.get('card_title', occ['cargo'])} · Sala {occ['room_code']} {occ['room']}",
+            "detail": f"{c.get('card_id', '')} · {MODALITY_LABEL[c['modality']]}"
+                      + (f" · {c['ai_tool']}" if c.get("ai_tool") else "")
+                      + f" · ${c['cost']} · +{c['profitability']}",
+            "color": modality_cost[c["modality"]]["color_hex"],
+            "nfc_uid": c.get("nfc_uid", ""),
+        })
+    for i, o in enumerate(data["occupations"], start=1):
+        cards.append({
+            "code": f"I{i:02d}", "kind": "occupation", "index": i - 1,
+            "title": o["cargo"],
+            "subtitle": f"Sala {o['room_code']} {o['room']}",
+            "detail": f"Tarjeta de ocupación (Insight) · ${data['game']['insight_cost']}",
+            "color": "#7A6FB0",
+            "nfc_uid": o.get("nfc_uid", ""),
+        })
+    for i, m in enumerate(data["mystery_cards"], start=1):
+        cards.append({
+            "code": f"M{i:02d}", "kind": "mystery", "index": i - 1,
+            "title": f"N.º {m['id']:02d} · {m['title']}",
+            "subtitle": EFFECT_LABEL.get(m["effect"], m["effect"]),
+            "detail": m.get("question") or m.get("text") or "Carta de Misterio",
+            "color": "#3E4A5C",
+            "nfc_uid": m.get("nfc_uid", ""),
+        })
+    return cards
 
 
 def main() -> None:
@@ -59,9 +116,9 @@ def main() -> None:
         f"constexpr uint8_t ROLES_PER_COMPANY = {len(companies[0]['required_occupation_ids'])};",
         f"constexpr int16_t STARTING_MONEY = {game['starting_money']};",
         f"constexpr uint8_t STARTING_PROFITABILITY = {game['starting_profitability']};",
-        f"constexpr uint8_t WIN_PROFITABILITY_TARGET = {game['win_profitability_target']};",
-        f"constexpr int16_t RECEPTION_BASE_PAYOUT = {game['reception_base_payout']};",
+        f"constexpr uint8_t MAX_PROFITABILITY = {game['max_profitability']};",
         f"constexpr int16_t RECEPTION_PAYOUT_PER_LEVEL = {game['reception_payout_per_level']};",
+        f"constexpr int16_t TRIVIA_REWARD = {game['trivia_reward']};",
         f"constexpr int16_t INSIGHT_COST = {game['insight_cost']};",
         "",
         "enum Modality : uint8_t {",
@@ -82,17 +139,20 @@ def main() -> None:
         "  MYS_UPGRADE_HUMAN_TO_HYBRID,",
         "  MYS_RETURN_CANDIDATE_HALF,",
         "  MYS_TRIVIA_CONFIRM,",
+        "  MYS_SWAP_CANDIDATE,",
         "};",
         "",
         "struct OccupationDef {",
         "  uint8_t id;",
         "  const char* isco;",
+        "  const char* cargo;      // as printed on the startup guides",
+        "  char room_code;         // board room letter (A..H)",
         "  const char* room;",
         "  const char* role;",
         "  float oit_score;",
         "  const char* oit_level;",
         "  Modality ideal_modality;",
-        "  uint32_t nfc_uid_hash; // 0 if unassigned",
+        "  uint32_t nfc_uid_hash; // 0 if unassigned (Insight card)",
         "};",
         "",
         "struct CandidateDef {",
@@ -108,8 +168,8 @@ def main() -> None:
         "struct CompanyDef {",
         "  uint8_t id;",
         "  const char* name;",
-        "  const char* founder;",
-        "  uint8_t required_occupations[ROLES_PER_COMPANY];",
+        "  const char* short_name; // 2 letters for the leaderboard",
+        "  uint8_t required_occupations[ROLES_PER_COMPANY]; // in guide order 1..5",
         "};",
         "",
         "struct MysteryCardDef {",
@@ -125,11 +185,11 @@ def main() -> None:
     ]
 
     for occ in occupations:
-        uid_val = f"0x{occ['nfc_uid']}" if occ.get("nfc_uid") else "0"
         lines.append(
-            f"  {{{occ['id']}, {c_str(occ['isco'])}, {c_str(occ['room'])}, "
-            f"{c_str(occ['role'])}, {occ['oit_score']:.2f}f, {c_str(occ['oit_level'])}, "
-            f"{MODALITY_ENUM[occ['ideal_modality']]}, {uid_val}}},"
+            f"  {{{occ['id']}, {c_str(occ['isco'])}, {c_str(occ['cargo'])}, '{occ['room_code']}', "
+            f"{c_str(occ['room'])}, {c_str(occ['role'])}, {occ['oit_score']:.2f}f, "
+            f"{c_str(occ['oit_level'])}, {MODALITY_ENUM[occ['ideal_modality']]}, "
+            f"{'0x' + occ['nfc_uid'] if occ.get('nfc_uid') else '0'}}},"
         )
     lines.append("};")
     lines.append("")
@@ -147,8 +207,9 @@ def main() -> None:
 
     for comp in companies:
         req = ", ".join(str(x) for x in comp["required_occupation_ids"])
+        short = comp.get("short_name") or comp["name"][:2].upper()
         lines.append(
-            f"  {{{comp['id']}, {c_str(comp['name'])}, {c_str(comp['founder'])}, {{{req}}}}},"
+            f"  {{{comp['id']}, {c_str(comp['name'])}, {c_str(short)}, {{{req}}}}},"
         )
     lines.append("};")
     lines.append("")
@@ -167,6 +228,18 @@ def main() -> None:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text("\n".join(lines), encoding="utf-8")
     print(f"Generated {OUT_PATH}")
+
+    WEB_CARDS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    web = {"title": game["title"], "count": len(candidates) + len(occupations) + len(mystery_cards),
+           "groups": [{"kind": "candidate", "title": "Postulantes", "count": len(candidates)},
+                      {"kind": "occupation", "title": "Ocupaciones (Insight)", "count": len(occupations)},
+                      {"kind": "mystery", "title": "Misterio", "count": len(mystery_cards)}],
+           "companies": [{"name": c["name"], "description": c["description"], "color": c.get("color_hex", ""),
+                          "cargos": [occupations[o]["cargo"] for o in c["required_occupation_ids"]]}
+                         for c in companies],
+           "cards": build_web_cards(data)}
+    WEB_CARDS_PATH.write_text(json.dumps(web, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Generated {WEB_CARDS_PATH}")
 
 
 if __name__ == "__main__":

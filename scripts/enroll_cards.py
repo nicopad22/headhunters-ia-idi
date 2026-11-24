@@ -132,14 +132,14 @@ def build_items(data: dict, group: str) -> list[tuple[str, str, dict]]:
         for i, c in enumerate(data["candidates"], start=1):
             occ = occ_by_id[c["occupation_id"]]
             label = (
-                f"CANDIDATE C{i:02d} | {occ['room']} ({occ['role']}) | "
+                f"CANDIDATE C{i:02d} | {occ['cargo']} (Sala {occ['room_code']}) | "
                 f"{c['modality']} (${c['cost']}) | {c['name']}"
             )
             items.append((f"C{i:02d}", label, c))
 
     if group in ("all", "occupations"):
         for i, o in enumerate(data["occupations"], start=1):
-            label = f"INSIGHT   I{i:02d} | {o['room']} — {o['role']} (OIT {o['oit_score']:.2f})"
+            label = f"INSIGHT   I{i:02d} | {o['cargo']} (Sala {o['room_code']}, OIT {o['oit_score']:.2f})"
             items.append((f"I{i:02d}", label, o))
 
     if group in ("all", "mystery"):
@@ -165,7 +165,7 @@ def save_and_generate(data: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Enroll 50 NFC cards into data/game_data.json.")
+    parser = argparse.ArgumentParser(description="Enroll the 50 NFC cards into data/game_data.json.")
     parser.add_argument("--group", choices=("all", "candidates", "occupations", "mystery"), default="all")
     parser.add_argument("--port", default=None, help="Serial port (default: auto-detect /dev/ttyUSB*)")
     parser.add_argument("--status", action="store_true", help="Print enrollment progress and exit")

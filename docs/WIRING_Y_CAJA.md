@@ -22,9 +22,9 @@ Especificación eléctrica y mecánica para **ESP-32D (N4xx)** + **RC522 NFC (SP
 | | `GND` | `GND` | Tierra común |
 | | `SDA` | `GPIO 21` | I2C SDA (dirección típica `0x3C`, controlador **SH1106**) |
 | | `SCL` | `GPIO 22` | I2C SCL |
-| **Botón P1 (Ruedas Verdes)** | Pata A / Pata B | `GPIO 32` / `GND` | Usa `INPUT_PULLUP` interno |
-| **Botón P2 (Estudio Prisma)** | Pata A / Pata B | `GPIO 33` / `GND` | Usa `INPUT_PULLUP` interno |
-| **Botón P3 (Billetera Clara)** | Pata A / Pata B | `GPIO 25` / `GND` | Usa `INPUT_PULLUP` interno |
+| **Botón P1 (NotCow)** | Pata A / Pata B | `GPIO 32` / `GND` | Usa `INPUT_PULLUP` interno |
+| **Botón P2 (Fintubal)** | Pata A / Pata B | `GPIO 33` / `GND` | Usa `INPUT_PULLUP` interno |
+| **Botón P3 (Ziptedi)** | Pata A / Pata B | `GPIO 25` / `GND` | Usa `INPUT_PULLUP` interno |
 | **Botón Atrás / Cancelar** | Pata A / Pata B | `GPIO 26` / `GND` | Usa `INPUT_PULLUP` interno |
 | **Botón Cobrar / Confirmar** | Pata A / Pata B | `GPIO 27` / `GND` | Usa `INPUT_PULLUP` interno |
 | **Buzzer Pasivo** | `+` / `-` | `GPIO 14` / `GND` | Opcional: resistencia `100 Ω` en serie si es buzzer suelto |

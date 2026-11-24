@@ -3,31 +3,98 @@
     "title": "Headhunters en la era de la IA",
     "course": "IDI1015 - Pensamiento Visual UC",
     "source": "Gmyrek, P. et al. (2025). Generative AI and Jobs: A Refined Global Index of Occupational Exposure. ILO Working Paper 140.",
+    "rules_source": "data/Updated game data/ (Cómo se juega, Fichas jugadores, Tarjetas, Cartas misterio, Plano v4)",
     "players_count": 3,
+    "age": "13+",
+    "duration_min": 45,
     "starting_money": 500,
-    "starting_profitability": 0,
-    "max_profitability": 15,
-    "win_profitability_target": 12,
-    "reception_base_payout": 100,
+    "starting_profitability": 2,
+    "max_profitability": 17,
     "reception_payout_per_level": 100,
-    "insight_cost": 50
+    "reception_payout_rule": "Al entrar a Recepción cobras $100 por nivel de rentabilidad, solo si desde tu último cobro entraste al menos a una sala.",
+    "broke_rule": "Sin dinero no puedes contratar. Si debes pagar y no te alcanza, devuelves una tarjeta a su sala, sin reembolso.",
+    "end_rule": "Cuando alguien completa sus 5 cargos se juega una última ronda. Gana la rentabilidad más alta; en empate, quien tenga más dinero.",
+    "trivia_reward": 100,
+    "dice": 2,
+    "box_contents": [
+      "Tablero",
+      "Consola",
+      "24 tarjetas de postulante",
+      "8 tarjetas de ocupación (Insight)",
+      "18 cartas Misterio",
+      "3 fichas de jugador",
+      "3 figuras",
+      "15 marcadores",
+      "2 dados"
+    ],
+    "insight_cost": 50,
+    "insight_rule": "Tarjetas de ocupación (Insight): escanéala y paga $50 para ver el puntaje OIT del cargo y la modalidad que más rinde.",
+    "money_rule": "Tu dinero lo lleva la consola.",
+    "replacement_rule": "Puedes reemplazar un cargo ya contratado pagando el precio completo de la nueva tarjeta."
   },
   "modalities": [
-    { "id": "H", "label": "Humano", "cost": 200, "color_name": "mostaza", "color_hex": "#E6B84D" },
-    { "id": "H_IA", "label": "Humano + IA", "cost": 300, "color_name": "terracota", "color_hex": "#D9745B" },
-    { "id": "IA", "label": "IA sola", "cost": 100, "color_name": "petroleo", "color_hex": "#4B8F8C" }
+    {
+      "id": "H",
+      "label": "Humano",
+      "short": "H",
+      "cost": 200,
+      "color_name": "amarillo",
+      "color_hex": "#FFCE32"
+    },
+    {
+      "id": "H_IA",
+      "label": "Humano + IA",
+      "short": "H+IA",
+      "cost": 300,
+      "color_name": "rosado",
+      "color_hex": "#F58DBD"
+    },
+    {
+      "id": "IA",
+      "label": "IA sola",
+      "short": "IA",
+      "cost": 100,
+      "color_name": "turquesa",
+      "color_hex": "#34B6B4"
+    }
   ],
   "profitability_matrix": {
-    "Sin exposicion": { "H": 3, "H_IA": 2, "IA": 1 },
-    "Minima": { "H": 3, "H_IA": 2, "IA": 1 },
-    "Baja": { "H": 2, "H_IA": 3, "IA": 1 },
-    "Moderada": { "H": 2, "H_IA": 3, "IA": 1 },
-    "Alta": { "H": 2, "H_IA": 3, "IA": 1 },
-    "Muy alta": { "H": 1, "H_IA": 3, "IA": 2 }
+    "Sin exposicion": {
+      "H": 3,
+      "H_IA": 2,
+      "IA": 1
+    },
+    "Minima": {
+      "H": 3,
+      "H_IA": 2,
+      "IA": 1
+    },
+    "Baja": {
+      "H": 2,
+      "H_IA": 3,
+      "IA": 1
+    },
+    "Moderada": {
+      "H": 2,
+      "H_IA": 3,
+      "IA": 1
+    },
+    "Alta": {
+      "H": 2,
+      "H_IA": 3,
+      "IA": 1
+    },
+    "Muy alta": {
+      "H": 1,
+      "H_IA": 3,
+      "IA": 2
+    }
   },
   "occupations": [
     {
       "id": 0,
+      "cargo": "Ingeniería mecánica",
+      "room_code": "A",
       "isco": "2144",
       "room": "Taller mecánico",
       "role": "Ingeniero/a mecánico/a",
@@ -40,6 +107,8 @@
     },
     {
       "id": 1,
+      "cargo": "Diseño de productos",
+      "room_code": "B",
       "isco": "2163",
       "room": "Lab de prototipos",
       "role": "Diseñador/a de productos",
@@ -52,6 +121,8 @@
     },
     {
       "id": 2,
+      "cargo": "Fotografía de contenido",
+      "room_code": "C",
       "isco": "3431",
       "room": "Estudio fotográfico",
       "role": "Fotógrafo/a de contenido",
@@ -64,6 +135,8 @@
     },
     {
       "id": 3,
+      "cargo": "Ventas",
+      "room_code": "D",
       "isco": "3322",
       "room": "Showroom",
       "role": "Ejecutivo/a de ventas",
@@ -76,6 +149,8 @@
     },
     {
       "id": 4,
+      "cargo": "Diseño gráfico",
+      "room_code": "E",
       "isco": "2166",
       "room": "Estudio de diseño",
       "role": "Diseñador/a gráfico/a",
@@ -88,6 +163,8 @@
     },
     {
       "id": 5,
+      "cargo": "Desarrollo de software",
+      "room_code": "F",
       "isco": "2512",
       "room": "Sala de servidores",
       "role": "Desarrollador/a de software",
@@ -100,11 +177,13 @@
     },
     {
       "id": 6,
+      "cargo": "Desarrollo web",
+      "room_code": "G",
       "isco": "2513",
       "room": "Oficina web",
       "role": "Desarrollador/a web",
       "career": "Animación Digital y Videojuegos",
-      "oit_score": 0.60,
+      "oit_score": 0.6,
       "oit_level": "Muy alta",
       "ideal_modality": "H_IA",
       "has_elevator_to": 2,
@@ -112,6 +191,8 @@
     },
     {
       "id": 7,
+      "cargo": "Análisis financiero",
+      "room_code": "H",
       "isco": "2413",
       "room": "Mesa de dinero",
       "role": "Analista financiero/a",
@@ -124,85 +205,189 @@
     }
   ],
   "candidates": [
-    { "id": 0, "occupation_id": 0, "modality": "H", "name": "Rosa Quispe", "cost": 200, "profitability": 3, "nfc_uid": "" },
-    { "id": 1, "occupation_id": 0, "modality": "H_IA", "name": "Tomás Fuentes", "cost": 300, "profitability": 2, "nfc_uid": "" },
-    { "id": 2, "occupation_id": 0, "modality": "IA", "name": "TUERCA-3000", "cost": 100, "profitability": 1, "nfc_uid": "" },
-
-    { "id": 3, "occupation_id": 1, "modality": "H", "name": "Ignacio Paredes", "cost": 200, "profitability": 3, "nfc_uid": "" },
-    { "id": 4, "occupation_id": 1, "modality": "H_IA", "name": "Valentina Soto", "cost": 300, "profitability": 2, "nfc_uid": "" },
-    { "id": 5, "occupation_id": 1, "modality": "IA", "name": "PROTO", "cost": 100, "profitability": 1, "nfc_uid": "" },
-
-    { "id": 6, "occupation_id": 2, "modality": "H", "name": "Amara Diallo", "cost": 200, "profitability": 2, "nfc_uid": "" },
-    { "id": 7, "occupation_id": 2, "modality": "H_IA", "name": "Joaquín Herrera", "cost": 300, "profitability": 3, "nfc_uid": "" },
-    { "id": 8, "occupation_id": 2, "modality": "IA", "name": "FLASH", "cost": 100, "profitability": 1, "nfc_uid": "" },
-
-    { "id": 9, "occupation_id": 3, "modality": "H", "name": "Carolina Méndez", "cost": 200, "profitability": 2, "nfc_uid": "" },
-    { "id": 10, "occupation_id": 3, "modality": "H_IA", "name": "Diego Morales", "cost": 300, "profitability": 3, "nfc_uid": "" },
-    { "id": 11, "occupation_id": 3, "modality": "IA", "name": "VENTA-BOT", "cost": 100, "profitability": 1, "nfc_uid": "" },
-
-    { "id": 12, "occupation_id": 4, "modality": "H", "name": "Lucía Navarro", "cost": 200, "profitability": 2, "nfc_uid": "" },
-    { "id": 13, "occupation_id": 4, "modality": "H_IA", "name": "Matías Rojas", "cost": 300, "profitability": 3, "nfc_uid": "" },
-    { "id": 14, "occupation_id": 4, "modality": "IA", "name": "PIXEL", "cost": 100, "profitability": 1, "nfc_uid": "" },
-
-    { "id": 15, "occupation_id": 5, "modality": "H", "name": "Sofía Contreras", "cost": 200, "profitability": 2, "nfc_uid": "" },
-    { "id": 16, "occupation_id": 5, "modality": "H_IA", "name": "Benjamín Lagos", "cost": 300, "profitability": 3, "nfc_uid": "" },
-    { "id": 17, "occupation_id": 5, "modality": "IA", "name": "BYTE", "cost": 100, "profitability": 1, "nfc_uid": "" },
-
-    { "id": 18, "occupation_id": 6, "modality": "H", "name": "Kenji Tanaka", "cost": 200, "profitability": 1, "nfc_uid": "" },
-    { "id": 19, "occupation_id": 6, "modality": "H_IA", "name": "Florencia Vidal", "cost": 300, "profitability": 3, "nfc_uid": "" },
-    { "id": 20, "occupation_id": 6, "modality": "IA", "name": "WEBBY", "cost": 100, "profitability": 2, "nfc_uid": "" },
-
-    { "id": 21, "occupation_id": 7, "modality": "H", "name": "Andrés Castillo", "cost": 200, "profitability": 1, "nfc_uid": "" },
-    { "id": 22, "occupation_id": 7, "modality": "H_IA", "name": "Martina Pérez", "cost": 300, "profitability": 3, "nfc_uid": "" },
-    { "id": 23, "occupation_id": 7, "modality": "IA", "name": "CIFRA", "cost": 100, "profitability": 2, "nfc_uid": "" }
+    {"id": 0, "card_id": "ID 001", "occupation_id": 0, "modality": "H", "name": "Marie Curri", "card_title": "Ingeniera mecánica", "cost": 200, "profitability": 3, "nfc_uid": ""},
+    {"id": 1, "card_id": "ID 002", "occupation_id": 0, "modality": "H_IA", "name": "Elon Mug", "card_title": "Ingeniero mecánico", "ai_tool": "Autodesko Fusión", "cost": 300, "profitability": 2, "nfc_uid": ""},
+    {"id": 2, "card_id": "ID 003", "occupation_id": 0, "modality": "IA", "name": "Autodesko Fusión", "card_title": "Ingeniería mecánica", "cost": 100, "profitability": 1, "nfc_uid": ""},
+    {"id": 3, "card_id": "ID 004", "occupation_id": 1, "modality": "H", "name": "Yoni Aiv", "card_title": "Diseñador de productos", "cost": 200, "profitability": 3, "nfc_uid": ""},
+    {"id": 4, "card_id": "ID 005", "occupation_id": 1, "modality": "H_IA", "name": "Ray Eims", "card_title": "Diseñadora de productos", "ai_tool": "Vizcomba", "cost": 300, "profitability": 2, "nfc_uid": ""},
+    {"id": 5, "card_id": "ID 006", "occupation_id": 1, "modality": "IA", "name": "Vizcomba", "card_title": "Diseño de productos", "cost": 100, "profitability": 1, "nfc_uid": ""},
+    {"id": 6, "card_id": "ID 007", "occupation_id": 2, "modality": "H", "name": "Annie Leivobitz", "card_title": "Fotógrafa de contenido", "cost": 200, "profitability": 2, "nfc_uid": ""},
+    {"id": 7, "card_id": "ID 008", "occupation_id": 2, "modality": "H_IA", "name": "Sergio Larrayn", "card_title": "Fotógrafo de contenido", "ai_tool": "Adobo Firefly", "cost": 300, "profitability": 3, "nfc_uid": ""},
+    {"id": 8, "card_id": "ID 009", "occupation_id": 2, "modality": "IA", "name": "Adobo Firefly", "card_title": "Fotografía de contenido", "cost": 100, "profitability": 1, "nfc_uid": ""},
+    {"id": 9, "card_id": "ID 010", "occupation_id": 3, "modality": "H", "name": "Mery Kei", "card_title": "Ejecutiva de ventas", "cost": 200, "profitability": 2, "nfc_uid": ""},
+    {"id": 10, "card_id": "ID 011", "occupation_id": 3, "modality": "H_IA", "name": "Steve Yobs", "card_title": "Ejecutivo de ventas", "ai_tool": "Agente Fuerza", "cost": 300, "profitability": 3, "nfc_uid": ""},
+    {"id": 11, "card_id": "ID 012", "occupation_id": 3, "modality": "IA", "name": "Agente Fuerza", "card_title": "Ventas", "cost": 100, "profitability": 1, "nfc_uid": ""},
+    {"id": 12, "card_id": "ID 013", "occupation_id": 4, "modality": "H", "name": "Paula Escher", "card_title": "Diseñadora gráfica", "cost": 200, "profitability": 2, "nfc_uid": ""},
+    {"id": 13, "card_id": "ID 014", "occupation_id": 4, "modality": "H_IA", "name": "Milton Glasé", "card_title": "Diseñador gráfico", "ai_tool": "Canvaz Studio", "cost": 300, "profitability": 3, "nfc_uid": ""},
+    {"id": 14, "card_id": "ID 015", "occupation_id": 4, "modality": "IA", "name": "Canvaz Studio", "card_title": "Diseño gráfico", "cost": 100, "profitability": 1, "nfc_uid": ""},
+    {"id": 15, "card_id": "ID 016", "occupation_id": 5, "modality": "H", "name": "Ada Lovelaz", "card_title": "Desarrolladora de software", "cost": 200, "profitability": 2, "nfc_uid": ""},
+    {"id": 16, "card_id": "ID 017", "occupation_id": 5, "modality": "H_IA", "name": "Bill Puertas", "card_title": "Desarrollador de software", "ai_tool": "Claudio Code", "cost": 300, "profitability": 3, "nfc_uid": ""},
+    {"id": 17, "card_id": "ID 018", "occupation_id": 5, "modality": "IA", "name": "Claudio Code", "card_title": "Desarrollo de software", "cost": 100, "profitability": 1, "nfc_uid": ""},
+    {"id": 18, "card_id": "ID 019", "occupation_id": 6, "modality": "H", "name": "Mark Zucarberg", "card_title": "Desarrollador web", "cost": 200, "profitability": 1, "nfc_uid": ""},
+    {"id": 19, "card_id": "ID 020", "occupation_id": 6, "modality": "H_IA", "name": "Marisa Mayo", "card_title": "Desarrolladora web", "ai_tool": "Lovablito", "cost": 300, "profitability": 3, "nfc_uid": ""},
+    {"id": 20, "card_id": "ID 021", "occupation_id": 6, "modality": "IA", "name": "Lovablito", "card_title": "Desarrollo web", "cost": 100, "profitability": 2, "nfc_uid": ""},
+    {"id": 21, "card_id": "ID 022", "occupation_id": 7, "modality": "H", "name": "Jeff Pezos", "card_title": "Analista financiero", "cost": 200, "profitability": 1, "nfc_uid": ""},
+    {"id": 22, "card_id": "ID 023", "occupation_id": 7, "modality": "H_IA", "name": "Oprah Winfrei", "card_title": "Analista financiera", "ai_tool": "Copiloto Excelente", "cost": 300, "profitability": 3, "nfc_uid": ""},
+    {"id": 23, "card_id": "ID 024", "occupation_id": 7, "modality": "IA", "name": "Copiloto Excelente", "card_title": "Análisis financiero", "cost": 100, "profitability": 2, "nfc_uid": ""}
   ],
   "companies": [
     {
       "id": 0,
-      "name": "Ruedas Verdes",
-      "founder": "Pía Riquelme",
-      "description": "Startup de scooters eléctricos para la ciudad",
+      "name": "NotCow",
+      "short_name": "NC",
+      "player": "Jugador 1",
       "shape": "Circulo",
       "color": "Verde",
-      "required_occupation_ids": [0, 2, 3, 5, 7]
+      "color_hex": "#26834A",
+      "description": "Foodtech chilena · alimentos vegetales creados con IA",
+      "roles": [
+        {
+          "occupation_id": 1,
+          "task": "Diseñar los envases de su leche vegetal y otros productos."
+        },
+        {
+          "occupation_id": 2,
+          "task": "Fotografiar los productos para el supermercado y las redes."
+        },
+        {
+          "occupation_id": 4,
+          "task": "Crear la marca y las etiquetas que se reconocen en la góndola."
+        },
+        {
+          "occupation_id": 5,
+          "task": "Mejorar la IA que inventa las recetas."
+        },
+        {
+          "occupation_id": 6,
+          "task": "Mantener el sitio y la tienda online de la marca."
+        }
+      ],
+      "required_occupation_ids": [
+        1,
+        2,
+        4,
+        5,
+        6
+      ]
     },
     {
       "id": 1,
-      "name": "Estudio Prisma",
-      "founder": "Nico Alvarado",
-      "description": "Startup de diseño y apps para marcas",
+      "name": "Fintubal",
+      "short_name": "FT",
+      "player": "Jugador 2",
       "shape": "Triangulo",
-      "color": "Terracota",
-      "required_occupation_ids": [1, 2, 4, 5, 6]
+      "color": "Morado",
+      "color_hex": "#74368D",
+      "description": "Fintech chilena · invertir fácil desde una app",
+      "roles": [
+        {
+          "occupation_id": 4,
+          "task": "Explicar las inversiones con gráficos e ilustraciones simples."
+        },
+        {
+          "occupation_id": 3,
+          "task": "Conseguir clientes y explicarles cómo invertir sus ahorros."
+        },
+        {
+          "occupation_id": 5,
+          "task": "Construir la app donde las personas ven crecer su plata."
+        },
+        {
+          "occupation_id": 6,
+          "task": "Mantener el sitio donde la gente abre su cuenta."
+        },
+        {
+          "occupation_id": 7,
+          "task": "Decidir en qué invertir el dinero de los fondos."
+        }
+      ],
+      "required_occupation_ids": [
+        4,
+        3,
+        5,
+        6,
+        7
+      ]
     },
     {
       "id": 2,
-      "name": "Billetera Clara",
-      "founder": "Elena Huenchu",
-      "description": "Startup de finanzas personales para jóvenes",
+      "name": "Ziptedi",
+      "short_name": "ZT",
+      "player": "Jugador 3",
       "shape": "Cuadrado",
-      "color": "Azul",
-      "required_occupation_ids": [0, 1, 3, 6, 7]
+      "color": "Naranjo",
+      "color_hex": "#FF8533",
+      "description": "Robótica chilena · robots que revisan las góndolas",
+      "roles": [
+        {
+          "occupation_id": 0,
+          "task": "Diseñar el robot que recorre los pasillos del supermercado."
+        },
+        {
+          "occupation_id": 1,
+          "task": "Diseñar la carcasa del robot para que sea segura entre clientes."
+        },
+        {
+          "occupation_id": 5,
+          "task": "Programar la IA que reconoce productos y precios en la góndola."
+        },
+        {
+          "occupation_id": 3,
+          "task": "Convencer a cadenas de supermercados de usar los robots."
+        },
+        {
+          "occupation_id": 7,
+          "task": "Calcular cuánto cobrar por el servicio y conseguir inversión."
+        }
+      ],
+      "required_occupation_ids": [
+        0,
+        1,
+        5,
+        3,
+        7
+      ]
     }
   ],
+  "board": {
+    "reception": {
+      "room_code": "R",
+      "room": "Recepción · RR.HH.",
+      "notes": "La consola va aquí; todos parten aquí."
+    },
+    "elevators": [
+      [
+        "A",
+        "E"
+      ],
+      [
+        "C",
+        "G"
+      ]
+    ],
+    "elevator_rule": "Si empiezas tu turno en una sala de esquina, viaja a la esquina opuesta en vez de lanzar los dados.",
+    "mystery_squares": 8,
+    "mystery_square_rule": "Si terminas en una casilla «?», saca una carta Misterio y hazle caso.",
+    "door_rule": "Si llegas a una puerta, entras aunque te sobren pasos y te detienes."
+  },
   "mystery_cards": [
-    { "id": 1, "title": "Ronda de inversión", "effect": "ADD_MONEY", "value": 300, "nfc_uid": "" },
-    { "id": 2, "title": "Clientes piden trato humano", "effect": "BONUS_PER_MODALITY", "modality": "H", "value": 100, "nfc_uid": "" },
-    { "id": 3, "title": "Nueva herramienta de IA", "effect": "BONUS_PER_MODALITY", "modality": "H_IA", "value": 100, "nfc_uid": "" },
-    { "id": 4, "title": "Error viral", "effect": "PENALTY_PER_MODALITY", "modality": "IA", "value": 100, "nfc_uid": "" },
-    { "id": 5, "title": "Auditoría de calidad", "effect": "PENALTY_LOW_IA", "value": 100, "nfc_uid": "" },
-    { "id": 6, "title": "Caída del servidor", "effect": "FORCE_RECEPTION_NO_PAY", "value": 0, "nfc_uid": "" },
-    { "id": 7, "title": "Pitch exitoso", "effect": "ENABLE_PAYOUT_RECEPTION", "value": 0, "nfc_uid": "" },
-    { "id": 8, "title": "Feria laboral", "effect": "BOARD_INFO_ONLY", "value": 0, "nfc_uid": "" },
-    { "id": 9, "title": "Práctica profesional", "effect": "NEXT_HIRE_DISCOUNT", "value": 100, "nfc_uid": "" },
-    { "id": 10, "title": "Headhunting directo", "effect": "BOARD_INFO_ONLY", "value": 0, "nfc_uid": "" },
-    { "id": 11, "title": "Capacitación interna", "effect": "UPGRADE_HUMAN_TO_HYBRID", "value": 100, "nfc_uid": "" },
-    { "id": 12, "title": "Reestructuración (devolución)", "effect": "RETURN_CANDIDATE_HALF", "value": 50, "nfc_uid": "" },
-    { "id": 13, "title": "Reestructuración", "effect": "RETURN_CANDIDATE_HALF", "value": 50, "nfc_uid": "" },
-    { "id": 14, "title": "Ascensor exprés", "effect": "BOARD_INFO_ONLY", "value": 0, "nfc_uid": "" },
-    { "id": 15, "title": "Dato OIT #1", "effect": "TRIVIA_CONFIRM", "value": 100, "nfc_uid": "" },
-    { "id": 16, "title": "Dato OIT #2", "effect": "TRIVIA_CONFIRM", "value": 100, "nfc_uid": "" },
-    { "id": 17, "title": "Dato OIT #3", "effect": "TRIVIA_CONFIRM", "value": 100, "nfc_uid": "" },
-    { "id": 18, "title": "Dato OIT #4", "effect": "TRIVIA_CONFIRM", "value": 100, "nfc_uid": "" }
+    {"id": 1, "title": "Ronda de inversión", "effect": "ADD_MONEY", "value": 300, "text": "Jeff Pezos invirtió en NotCow. Hoy alguien cree en tu startup. Recibe $300 en la consola.", "nfc_uid": ""},
+    {"id": 2, "title": "Clientes piden trato humano", "effect": "BONUS_PER_MODALITY", "modality": "H", "value": 100, "text": "Tus clientes quieren hablar con una persona. Cobra $100 por cada «Humano» de tu empresa.", "nfc_uid": ""},
+    {"id": 3, "title": "Nueva herramienta de IA", "effect": "BONUS_PER_MODALITY", "modality": "H_IA", "value": 100, "text": "Tus equipos mixtos rinden más. Cobra $100 por cada «Humano + IA».", "nfc_uid": ""},
+    {"id": 4, "title": "Error viral", "effect": "PENALTY_PER_MODALITY", "modality": "IA", "value": 100, "text": "Una IA sin supervisión publicó un error en redes. Paga $100 por cada «IA sola» de tu empresa.", "nfc_uid": ""},
+    {"id": 5, "title": "Auditoría de calidad", "effect": "PENALTY_LOW_IA", "value": 100, "text": "Si tienes un «IA sola» con rentabilidad Baja (+1): paga $100 de multa o devuélvelo a su sala.", "nfc_uid": ""},
+    {"id": 6, "title": "¡Se cayó el server!", "effect": "FORCE_RECEPTION_NO_PAY", "value": 0, "text": "Tu equipo quedó desconectado. Vuelve a la Recepción. Este trimestre cobras $0.", "nfc_uid": ""},
+    {"id": 7, "title": "Pitch exitoso", "effect": "ENABLE_PAYOUT_RECEPTION", "value": 0, "text": "Fintubal convenció a Sekoya, uno de los fondos más famosos del mundo. Ve directo a la Recepción y cobra tu trimestre.", "nfc_uid": ""},
+    {"id": 8, "title": "Expansión internacional", "effect": "BOARD_INFO_ONLY", "value": 0, "text": "Los robots de ZIPTEDI llegaron a supermercados de otros países. Mueve tu ficha a la puerta de cualquier sala de tu guía.", "nfc_uid": ""},
+    {"id": 9, "title": "Práctica profesional", "effect": "NEXT_HIRE_DISCOUNT", "value": 100, "text": "Guarda esta carta. Tu próxima contratación cuesta $100 menos.", "nfc_uid": ""},
+    {"id": 10, "title": "Headhunting directo", "effect": "BOARD_INFO_ONLY", "value": 0, "text": "Encontraste al talento perfecto sin salir de la oficina. Contrata en cualquier sala de tu guía sin ir hasta ella, pagando el costo del postulante.", "nfc_uid": ""},
+    {"id": 11, "title": "Capacitación interna", "effect": "UPGRADE_HUMAN_TO_HYBRID", "value": 100, "text": "Tu equipo aprende a trabajar con IA. Cambia un «Humano» por el «Humano + IA» del mismo cargo, si está libre. Pagas $100.", "nfc_uid": ""},
+    {"id": 12, "title": "Fuga de talento", "effect": "SWAP_CANDIDATE", "value": 0, "text": "Alguien se fue a la competencia. Intercambia un postulante con otro jugador que tenga el mismo cargo. Ambos ajustan su rentabilidad.", "nfc_uid": ""},
+    {"id": 13, "title": "Reestructuración", "effect": "RETURN_CANDIDATE_HALF", "value": 50, "text": "Reorganizas tu equipo. Devuelve un postulante tuyo a su sala y recupera la mitad de lo que pagaste.", "nfc_uid": ""},
+    {"id": 14, "title": "Trabajo remoto", "effect": "BOARD_INFO_ONLY", "value": 0, "text": "Te conectas desde cualquier lugar. Muévete a cualquier sala del edificio. Tu turno termina ahí.", "nfc_uid": ""},
+    {"id": 15, "title": "Dato OIT #1", "effect": "TRIVIA_CONFIRM", "value": 100, "question": "¿Estar expuesto a la IA significa perder el empleo?", "answer": "No. Mide cuánto de las tareas de un trabajo podría hacer la IA, no si el trabajo desaparece.", "nfc_uid": ""},
+    {"id": 16, "title": "Dato OIT #2", "effect": "TRIVIA_CONFIRM", "value": 100, "question": "Del fotógrafo, ¿qué tarea está más expuesta: tomar retratos o pasar fotos al computador?", "answer": "Pasar fotos al computador (0,57). Tomar retratos tiene 0,25.", "nfc_uid": ""},
+    {"id": 17, "title": "Dato OIT #3", "effect": "TRIVIA_CONFIRM", "value": 100, "question": "¿Quién está más expuesto: el desarrollador de software o el desarrollador web?", "answer": "El desarrollador web (0,60, Muy alta). El de software tiene 0,53 (Alta).", "nfc_uid": ""},
+    {"id": 18, "title": "Dato OIT #4", "effect": "TRIVIA_CONFIRM", "value": 100, "question": "El puntaje de una ocupación es el promedio de ¿qué tareas?", "answer": "De todas sus tareas, también de las que la IA casi no puede hacer.", "nfc_uid": ""}
   ]
 }
