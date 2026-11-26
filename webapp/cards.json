@@ -65,7 +65,7 @@
    "subtitle": "Ingeniera mecánica · Sala A Taller mecánico",
    "detail": "ID 001 · Humano · $200 · +3",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "CE3EB8DB"
   },
   {
    "code": "C02",
@@ -75,7 +75,7 @@
    "subtitle": "Ingeniero mecánico · Sala A Taller mecánico",
    "detail": "ID 002 · Humano + IA · Autodesko Fusión · $300 · +2",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "1762B8DB"
   },
   {
    "code": "C03",
@@ -85,7 +85,7 @@
    "subtitle": "Ingeniería mecánica · Sala A Taller mecánico",
    "detail": "ID 003 · IA sola · $100 · +1",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "67C8B7DB"
   },
   {
    "code": "C04",
@@ -95,7 +95,7 @@
    "subtitle": "Diseñador de productos · Sala B Lab de prototipos",
    "detail": "ID 004 · Humano · $200 · +3",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "219CB8DB"
   },
   {
    "code": "C05",
@@ -105,7 +105,7 @@
    "subtitle": "Diseñadora de productos · Sala B Lab de prototipos",
    "detail": "ID 005 · Humano + IA · Vizcomba · $300 · +2",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "111C62CB"
   },
   {
    "code": "C06",
@@ -115,7 +115,7 @@
    "subtitle": "Diseño de productos · Sala B Lab de prototipos",
    "detail": "ID 006 · IA sola · $100 · +1",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "E29261CB"
   },
   {
    "code": "C07",
@@ -125,7 +125,7 @@
    "subtitle": "Fotógrafa de contenido · Sala C Estudio fotográfico",
    "detail": "ID 007 · Humano · $200 · +2",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "0B7DB8DB"
   },
   {
    "code": "C08",
@@ -135,7 +135,7 @@
    "subtitle": "Fotógrafo de contenido · Sala C Estudio fotográfico",
    "detail": "ID 008 · Humano + IA · Adobo Firefly · $300 · +3",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "4E24B8DB"
   },
   {
    "code": "C09",
@@ -145,7 +145,7 @@
    "subtitle": "Fotografía de contenido · Sala C Estudio fotográfico",
    "detail": "ID 009 · IA sola · $100 · +1",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "0D6AB5DB"
   },
   {
    "code": "C10",
@@ -155,7 +155,7 @@
    "subtitle": "Ejecutiva de ventas · Sala D Showroom",
    "detail": "ID 010 · Humano · $200 · +2",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "3101B3DB"
   },
   {
    "code": "C11",
@@ -165,7 +165,7 @@
    "subtitle": "Ejecutivo de ventas · Sala D Showroom",
    "detail": "ID 011 · Humano + IA · Agente Fuerza · $300 · +3",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "F2601249"
   },
   {
    "code": "C12",
@@ -175,7 +175,7 @@
    "subtitle": "Ventas · Sala D Showroom",
    "detail": "ID 012 · IA sola · $100 · +1",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "EE8C60CB"
   },
   {
    "code": "C13",
@@ -185,7 +185,7 @@
    "subtitle": "Diseñadora gráfica · Sala E Estudio de diseño",
    "detail": "ID 013 · Humano · $200 · +2",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "FE10745B"
   },
   {
    "code": "C14",
@@ -195,7 +195,7 @@
    "subtitle": "Diseñador gráfico · Sala E Estudio de diseño",
    "detail": "ID 014 · Humano + IA · Canvaz Studio · $300 · +3",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "A7C31249"
   },
   {
    "code": "C15",
@@ -205,7 +205,7 @@
    "subtitle": "Diseño gráfico · Sala E Estudio de diseño",
    "detail": "ID 015 · IA sola · $100 · +1",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "4ABF1249"
   },
   {
    "code": "C16",
@@ -215,7 +215,7 @@
    "subtitle": "Desarrolladora de software · Sala F Sala de servidores",
    "detail": "ID 016 · Humano · $200 · +2",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "340B1249"
   },
   {
    "code": "C17",
@@ -225,7 +225,7 @@
    "subtitle": "Desarrollador de software · Sala F Sala de servidores",
    "detail": "ID 017 · Humano + IA · Claudio Code · $300 · +3",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "0D391249"
   },
   {
    "code": "C18",
@@ -235,7 +235,7 @@
    "subtitle": "Desarrollo de software · Sala F Sala de servidores",
    "detail": "ID 018 · IA sola · $100 · +1",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "3C4E1249"
   },
   {
    "code": "C19",
@@ -245,7 +245,7 @@
    "subtitle": "Desarrollador web · Sala G Oficina web",
    "detail": "ID 019 · Humano · $200 · +1",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "7B5BB7DB"
   },
   {
    "code": "C20",
@@ -255,7 +255,7 @@
    "subtitle": "Desarrolladora web · Sala G Oficina web",
    "detail": "ID 020 · Humano + IA · Lovablito · $300 · +3",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "AC53B7DB"
   },
   {
    "code": "C21",
@@ -265,7 +265,7 @@
    "subtitle": "Desarrollo web · Sala G Oficina web",
    "detail": "ID 021 · IA sola · $100 · +2",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "C1A6B5DB"
   },
   {
    "code": "C22",
@@ -275,7 +275,7 @@
    "subtitle": "Analista financiero · Sala H Mesa de dinero",
    "detail": "ID 022 · Humano · $200 · +1",
    "color": "#FFCE32",
-   "nfc_uid": ""
+   "nfc_uid": "63609ABB"
   },
   {
    "code": "C23",
@@ -285,7 +285,7 @@
    "subtitle": "Analista financiera · Sala H Mesa de dinero",
    "detail": "ID 023 · Humano + IA · Copiloto Excelente · $300 · +3",
    "color": "#F58DBD",
-   "nfc_uid": ""
+   "nfc_uid": "F4565FCB"
   },
   {
    "code": "C24",
@@ -295,7 +295,7 @@
    "subtitle": "Análisis financiero · Sala H Mesa de dinero",
    "detail": "ID 024 · IA sola · $100 · +2",
    "color": "#34B6B4",
-   "nfc_uid": ""
+   "nfc_uid": "E26762CB"
   },
   {
    "code": "I01",
@@ -305,7 +305,7 @@
    "subtitle": "Sala A Taller mecánico",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "5E61B4DB"
   },
   {
    "code": "I02",
@@ -315,7 +315,7 @@
    "subtitle": "Sala B Lab de prototipos",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "EBD660CB"
   },
   {
    "code": "I03",
@@ -325,7 +325,7 @@
    "subtitle": "Sala C Estudio fotográfico",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "2CF060CB"
   },
   {
    "code": "I04",
@@ -335,7 +335,7 @@
    "subtitle": "Sala D Showroom",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "34B31149"
   },
   {
    "code": "I05",
@@ -345,7 +345,7 @@
    "subtitle": "Sala E Estudio de diseño",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "66BF1149"
   },
   {
    "code": "I06",
@@ -355,7 +355,7 @@
    "subtitle": "Sala F Sala de servidores",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "28D01149"
   },
   {
    "code": "I07",
@@ -365,7 +365,7 @@
    "subtitle": "Sala G Oficina web",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "84AA1249"
   },
   {
    "code": "I08",
@@ -375,7 +375,7 @@
    "subtitle": "Sala H Mesa de dinero",
    "detail": "Tarjeta de ocupación (Insight) · $50",
    "color": "#7A6FB0",
-   "nfc_uid": ""
+   "nfc_uid": "624A60CB"
   },
   {
    "code": "M01",
@@ -385,7 +385,7 @@
    "subtitle": "Suma dinero",
    "detail": "Jeff Pezos invirtió en NotCow. Hoy alguien cree en tu startup. Recibe $300 en la consola.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "3BB01149"
   },
   {
    "code": "M02",
@@ -395,7 +395,7 @@
    "subtitle": "Bono por modalidad",
    "detail": "Tus clientes quieren hablar con una persona. Cobra $100 por cada «Humano» de tu empresa.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "1A6061CB"
   },
   {
    "code": "M03",
@@ -405,7 +405,7 @@
    "subtitle": "Bono por modalidad",
    "detail": "Tus equipos mixtos rinden más. Cobra $100 por cada «Humano + IA».",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "1DD51149"
   },
   {
    "code": "M04",
@@ -415,7 +415,7 @@
    "subtitle": "Multa por modalidad",
    "detail": "Una IA sin supervisión publicó un error en redes. Paga $100 por cada «IA sola» de tu empresa.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "6DB09ABB"
   },
   {
    "code": "M05",
@@ -425,7 +425,7 @@
    "subtitle": "Auditoría IA +1",
    "detail": "Si tienes un «IA sola» con rentabilidad Baja (+1): paga $100 de multa o devuélvelo a su sala.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "36AEB4DB"
   },
   {
    "code": "M06",
@@ -435,7 +435,7 @@
    "subtitle": "Recepción sin cobro",
    "detail": "Tu equipo quedó desconectado. Vuelve a la Recepción. Este trimestre cobras $0.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "4975B7DB"
   },
   {
    "code": "M07",
@@ -445,7 +445,7 @@
    "subtitle": "Habilita cobro",
    "detail": "Fintubal convenció a Sekoya, uno de los fondos más famosos del mundo. Ve directo a la Recepción y cobra tu trimestre.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "4AC7ABBB"
   },
   {
    "code": "M08",
@@ -455,7 +455,7 @@
    "subtitle": "Jugada en tablero",
    "detail": "Los robots de ZIPTEDI llegaron a supermercados de otros países. Mueve tu ficha a la puerta de cualquier sala de tu guía.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "0BDA61CB"
   },
   {
    "code": "M09",
@@ -465,17 +465,17 @@
    "subtitle": "Descuento próxima contratación",
    "detail": "Guarda esta carta. Tu próxima contratación cuesta $100 menos.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "536EB7DB"
   },
   {
    "code": "M10",
    "kind": "mystery",
    "index": 9,
    "title": "N.º 10 · Headhunting directo",
-   "subtitle": "Jugada en tablero",
+   "subtitle": "Contrata sin ir a la sala",
    "detail": "Encontraste al talento perfecto sin salir de la oficina. Contrata en cualquier sala de tu guía sin ir hasta ella, pagando el costo del postulante.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "2DE761CB"
   },
   {
    "code": "M11",
@@ -485,7 +485,7 @@
    "subtitle": "Mejora Humano a Humano + IA",
    "detail": "Tu equipo aprende a trabajar con IA. Cambia un «Humano» por el «Humano + IA» del mismo cargo, si está libre. Pagas $100.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "0E4CB8DB"
   },
   {
    "code": "M12",
@@ -495,7 +495,7 @@
    "subtitle": "Intercambia un postulante",
    "detail": "Alguien se fue a la competencia. Intercambia un postulante con otro jugador que tenga el mismo cargo. Ambos ajustan su rentabilidad.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "0064B7DB"
   },
   {
    "code": "M13",
@@ -505,7 +505,7 @@
    "subtitle": "Devuelve un postulante",
    "detail": "Reorganizas tu equipo. Devuelve un postulante tuyo a su sala y recupera la mitad de lo que pagaste.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "ECBBB7DB"
   },
   {
    "code": "M14",
@@ -515,7 +515,7 @@
    "subtitle": "Jugada en tablero",
    "detail": "Te conectas desde cualquier lugar. Muévete a cualquier sala del edificio. Tu turno termina ahí.",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "23F61149"
   },
   {
    "code": "M15",
@@ -525,7 +525,7 @@
    "subtitle": "Trivia Sí / No",
    "detail": "¿Estar expuesto a la IA significa perder el empleo?",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "39D21149"
   },
   {
    "code": "M16",
@@ -535,7 +535,7 @@
    "subtitle": "Trivia Sí / No",
    "detail": "Del fotógrafo, ¿qué tarea está más expuesta: tomar retratos o pasar fotos al computador?",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "3073B7DB"
   },
   {
    "code": "M17",
@@ -545,7 +545,7 @@
    "subtitle": "Trivia Sí / No",
    "detail": "¿Quién está más expuesto: el desarrollador de software o el desarrollador web?",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "F674B8DB"
   },
   {
    "code": "M18",
@@ -555,7 +555,7 @@
    "subtitle": "Trivia Sí / No",
    "detail": "El puntaje de una ocupación es el promedio de ¿qué tareas?",
    "color": "#3E4A5C",
-   "nfc_uid": ""
+   "nfc_uid": "36E0B7DB"
   }
  ]
 }

@@ -53,6 +53,7 @@ const char* mysteryEffectLabel(MysteryEffect e) {
     case MYS_RETURN_CANDIDATE_HALF:   return "Devuelve postulante";
     case MYS_TRIVIA_CONFIRM:          return "Trivia Si/No";
     case MYS_SWAP_CANDIDATE:          return "Intercambio";
+    case MYS_DIRECT_HIRE:             return "Contrata a distancia";
   }
   return "";
 }

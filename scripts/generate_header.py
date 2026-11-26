@@ -26,6 +26,7 @@ EFFECT_LABEL = {
     "RETURN_CANDIDATE_HALF": "Devuelve un postulante",
     "TRIVIA_CONFIRM": "Trivia Sí / No",
     "SWAP_CANDIDATE": "Intercambia un postulante",
+    "DIRECT_HIRE": "Contrata sin ir a la sala",
 }
 
 MODALITY_ENUM = {
@@ -47,6 +48,7 @@ MYSTERY_EFFECT_ENUM = {
     "RETURN_CANDIDATE_HALF": "MYS_RETURN_CANDIDATE_HALF",
     "TRIVIA_CONFIRM": "MYS_TRIVIA_CONFIRM",
     "SWAP_CANDIDATE": "MYS_SWAP_CANDIDATE",
+    "DIRECT_HIRE": "MYS_DIRECT_HIRE",
 }
 
 
@@ -140,6 +142,7 @@ def main() -> None:
         "  MYS_RETURN_CANDIDATE_HALF,",
         "  MYS_TRIVIA_CONFIRM,",
         "  MYS_SWAP_CANDIDATE,",
+        "  MYS_DIRECT_HIRE,",
         "};",
         "",
         "struct OccupationDef {",

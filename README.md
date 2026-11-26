@@ -10,6 +10,16 @@ Repositorio de firmware, datos del juego, diagnósticos de hardware y planificac
 - [docs/WIRING_Y_CAJA.md](./docs/WIRING_Y_CAJA.md) — Cableado exacto y distribución en caja de `12 × 12 × 3 cm`.
 - [docs/DIMENSIONES.md](./docs/DIMENSIONES.md) — Todas las medidas físicas en mm (tablero `50×50 cm`, caja `120×120×30 mm`, componentes y tarjetas PVC `85,6×54 mm`), junto a la plantilla 1:1 [`docs/caja_120x120_1a1.svg`](./docs/caja_120x120_1a1.svg) y [`data/dimensions.json`](./data/dimensions.json).
 
+## Cómo corre una partida en la consola
+
+1. **Pantalla de inicio** → `[$]` empieza la partida.
+2. La consola **sortea quién empieza** y muestra el orden (P1 NotCow → P2 Fintubal → P3 Ziptedi, desde el que empieza).
+3. **Cada turno** la pantalla dice de quién es el turno: lanza los dados, mueve y haz **una sola acción**: contratar (escanear postulante), sacar una carta Misterio (escanearla) o cobrar en Recepción (`[$]`). Las tarjetas de ocupación (Insight, $50) no gastan la acción.
+4. `[<-]` **termina el turno** y la consola anuncia al siguiente jugador. `P1`/`P2`/`P3` durante un turno muestran los puntajes.
+5. Cuando alguien completa sus 5 cargos, cada otro jugador juega un último turno y la consola muestra el ranking final (`[<-]` = nueva partida).
+
+Excepciones de las cartas Misterio: *Pitch exitoso* cobra el trimestre al tiro, *Headhunting directo* permite contratar en ese mismo turno y *Capacitación interna* hace el cambio Humano → Humano + IA en el momento.
+
 ## Flujo rápido de trabajo
 
 ### 1. Probar el flujo completo del juego con 6 tarjetas cualquiera (Dummy Flow Test)

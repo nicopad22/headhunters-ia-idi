@@ -4,6 +4,7 @@
 #include <MFRC522.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
+#include <Preferences.h>
 
 #include "card_registry.h"
 #include "game_data.h"
@@ -34,10 +35,33 @@
 //     to its room with no refund.
 //   - End: when someone completes their 5 roles a last round is played; then
 //     highest profitability wins, ties broken by money.
+//
+// Turn flow: start screen -> [$] -> random starting player -> each turn the
+// console names the player, who rolls, moves and does at most ONE action
+// (hire a candidate, draw a Misterio card, or collect at Recepcion), then ends
+// the turn with [<-]. Insight cards are free extras and don't use the action.
+// After someone completes 5/5, every other player gets one last turn and the
+// console shows the final ranking by itself.
 // ============================================================================
 
 constexpr uint8_t OLED_I2C_ADDR = 0x3C;
-constexpr uint32_t FEEDBACK_DURATION_MS = 3800;
+
+// OLED orientation (the screen is mounted backwards in the box):
+//   0 = normal, 1 = flipped vertically, 2 = rotated 180 degrees (default).
+// Change it without reflashing by typing "oled 0", "oled 1" or "oled 2" in the
+// Serial Monitor (saved in flash), or at build time with -DOLED_ORIENTATION_DEFAULT=n.
+#ifndef OLED_ORIENTATION_DEFAULT
+#define OLED_ORIENTATION_DEFAULT 2
+#endif
+enum OledOrientation : uint8_t {
+  OLED_NORMAL = 0,
+  OLED_FLIP_VERTICAL = 1,
+  OLED_ROTATE_180 = 2,
+};
+constexpr const char* OLED_NVS_NAMESPACE = "hh_cfg";
+constexpr const char* OLED_NVS_KEY = "oled";
+constexpr uint32_t FEEDBACK_DURATION_MS = 9000;  // game messages; [<-] skips them
+constexpr uint32_t PEEK_DURATION_MS = 5000;      // P1-P3 scoreboard peek
 
 // Button indices
 constexpr uint8_t BTN_P1 = 0;
@@ -55,13 +79,15 @@ constexpr uint8_t ADMIN_CODE[] = {BTN_P1, BTN_P2, BTN_P3};
 constexpr uint8_t ADMIN_CODE_LEN = sizeof(ADMIN_CODE);
 
 enum ConsoleState : uint8_t {
-  STATE_IDLE_LEADERBOARD = 0,
-  STATE_PLAYER_SELECTED,
+  STATE_START = 0,            // title screen, [$] starts a game
+  STATE_ROLL_STARTER,         // animation picking the starting player
+  STATE_TURN,                 // active_player's turn
+  STATE_PEEK_SCORES,          // P1-P3 during a turn: scoreboard for a few seconds
   STATE_SHOW_FEEDBACK,
   STATE_WAIT_TRIVIA_CONFIRM,
   STATE_WAIT_PAYOUT_CONFIRM,  // COBRAR without a hire since last payout: "did you enter a room?"
   STATE_WAIT_RETURN_SCAN,
-  STATE_CONFIRM_END_GAME,     // last round finished? [$] = end the game
+  STATE_WAIT_UPGRADE_SCAN,    // Capacitacion interna: scan the Humano + IA that replaces your Humano
   STATE_WAIT_AUDIT_CHOICE,    // Auditoria: [$] pay the fine / [<-] return the IA +1
   STATE_WAIT_SWAP_MINE,       // Fuga de talento: scan your own card
   STATE_WAIT_SWAP_THEIRS,     // Fuga de talento: scan the other player's card (same role)
@@ -78,7 +104,6 @@ struct PlayerState {
   uint8_t profitability;
   int8_t hired_candidate_by_slot[ROLES_PER_COMPANY]; // -1 if empty
   int16_t next_hire_discount;
-  bool upgrade_human_ready;
   bool eligible_for_payout;  // hired (so entered a room) or Pitch exitoso since last payout
 };
 
@@ -96,12 +121,64 @@ struct Button {
 MFRC522 rfid(PIN_RFID_SS, PIN_RFID_RST);
 Adafruit_SH1106G display(128, 64, &Wire, -1);
 bool oled_ok = false;
+uint8_t oled_orientation = OLED_ORIENTATION_DEFAULT;
+
+const char* oledOrientationLabel(uint8_t mode) {
+  switch (mode) {
+    case OLED_NORMAL:        return "normal";
+    case OLED_FLIP_VERTICAL: return "volteada vertical";
+    case OLED_ROTATE_180:    return "girada 180";
+  }
+  return "?";
+}
+
+// Vertical flip is done in the controller (COM scan direction); 180 degrees is
+// done in software so the SH1106's 132-column RAM offset doesn't shift the image.
+void applyOledOrientation(uint8_t mode) {
+  if (mode > OLED_ROTATE_180) mode = OLED_ORIENTATION_DEFAULT;
+  oled_orientation = mode;
+  if (!oled_ok) return;
+  display.oled_command(0xA1);  // segment remap: library default (left-right as normal)
+  display.oled_command(mode == OLED_FLIP_VERTICAL ? 0xC0 : 0xC8);  // COM scan: up / down
+  display.setRotation(mode == OLED_ROTATE_180 ? 2 : 0);
+}
+
+uint8_t loadOledOrientation() {
+  Preferences prefs;
+  uint8_t mode = OLED_ORIENTATION_DEFAULT;
+  if (prefs.begin(OLED_NVS_NAMESPACE, true)) {
+    mode = prefs.getUChar(OLED_NVS_KEY, OLED_ORIENTATION_DEFAULT);
+    prefs.end();
+  }
+  return mode <= OLED_ROTATE_180 ? mode : OLED_ORIENTATION_DEFAULT;
+}
+
+void saveOledOrientation(uint8_t mode) {
+  Preferences prefs;
+  if (prefs.begin(OLED_NVS_NAMESPACE, false)) {
+    prefs.putUChar(OLED_NVS_KEY, mode);
+    prefs.end();
+  }
+}
 
 PlayerState players[NUM_PLAYERS];
 bool candidate_taken[NUM_CANDIDATES];
-ConsoleState console_state = STATE_IDLE_LEADERBOARD;
-ConsoleState state_after_feedback = STATE_IDLE_LEADERBOARD;
-int8_t active_player = -1;
+ConsoleState console_state = STATE_START;
+ConsoleState state_after_feedback = STATE_START;
+int8_t active_player = -1;       // whose turn it is (-1 before the game starts)
+int8_t starting_player = -1;
+bool action_done = false;        // this turn's one action (hire / Misterio / cobro) was used
+bool bonus_hire = false;         // Headhunting directo: one extra hire allowed this turn
+uint16_t turn_number = 0;
+ConsoleState peek_return_state = STATE_TURN;
+uint32_t peek_started_ms = 0;
+// Starting-player draw animation
+constexpr uint32_t ROLL_DURATION_MS = 2400;
+constexpr uint32_t ROLL_STEP_MS = 120;
+uint32_t roll_started_ms = 0;
+uint32_t roll_last_step_ms = 0;
+uint8_t roll_highlight = 0;
+bool pending_turn_start = false;  // start active_player's turn when the feedback closes
 int8_t winner_player = -1;
 int8_t last_round_by = -1;       // player who completed 5/5 first (-1: not in last round)
 uint8_t final_rank[NUM_PLAYERS]; // player indices, best first (valid in STATE_GAME_OVER)
@@ -147,7 +224,7 @@ enum AdminConfirm : uint8_t {
   CONFIRM_WIPE_ALL,
 };
 
-ConsoleState resume_state = STATE_IDLE_LEADERBOARD; // where to go after admin / failed code
+ConsoleState resume_state = STATE_START; // where to go after admin / failed code
 uint8_t code_progress = 0;
 uint32_t code_last_ms = 0;
 
@@ -205,17 +282,17 @@ const char* DUMMY_ENROLL_SERIAL[DUMMY_CARD_COUNT] = {
 };
 
 const char* DUMMY_STEP_PROMPT_OLED[12] = {
-  "1: P1 + Tarjeta #4",
-  "2: COBRAR y ATRAS=No",
+  "1: [$] Empezar",
+  "2: Escanea #4 Marie",
   "3: Escanea #1 Yoni",
-  "4: Presiona COBRAR",
-  "5: Escanea #3 Sergio",
-  "6: Escanea #2 Ray",
-  "7: Escanea #5 Mist.",
-  "8: Presiona COBRAR",
-  "9: COBRAR y $=Si",
+  "4: Escanea #3 Sergio",
+  "5: [<-] x3 (NotCow)",
+  "6: Presiona COBRAR",
+  "7: [<-] x3 (NotCow)",
+  "8: Escanea #2 Ray",
+  "9: [<-] x3 (NotCow)",
   "10: #6 + COBRAR(Si)",
-  "11: Presiona ATRAS",
+  "11: [<-]x3 + #5",
   "TEST OK! Modo libre",
 };
 
@@ -224,23 +301,23 @@ void printDummyStepPrompt() {
     Serial.println(F("\n=================================================="));
     Serial.println(F("  ALL 11 GUIDED FLOW STEPS PASSED!"));
     Serial.println(F("  Console is now in FREE-PLAY mode with your 6 cards."));
-    Serial.println(F("  Try P2/P3 to test exclusivity, or hire 5 roles to start the last round."));
+    Serial.println(F("  Keep playing turns, or hire 5 roles to start the last round."));
     Serial.println(F("==================================================\n"));
     return;
   }
   Serial.println(F("\n>>> NEXT GUIDED TEST STEP:"));
   switch (dummy_step) {
-    case 0: Serial.println(F("  [STEP 1/11] Press button P1 (NotCow), then tap Card #4 (Marie Curri - NOT in NotCow guide). Expect: BLOCKED.")); break;
-    case 1: Serial.println(F("  [STEP 2/11] Press COBRAR before hiring anything. Expect: asks 'Entraste a una sala?'. Press ATRAS (=No): $0.")); break;
-    case 2: Serial.println(F("  [STEP 3/11] Tap Card #1 (Yoni Aiv, Humano $200, +3). Expect: -$200 ($300), Level 2 -> 5.")); break;
-    case 3: Serial.println(F("  [STEP 4/11] Press COBRAR at level 5. Expect: +$500 (5 x $100 -> $800), no question asked.")); break;
-    case 4: Serial.println(F("  [STEP 5/11] Tap Card #3 (Sergio Larrayn, Fotografia H+IA $300, +3). Expect: -$300 ($500), Level 5 -> 8.")); break;
-    case 5: Serial.println(F("  [STEP 6/11] Tap Card #2 (Ray Eims, SAME role as Yoni). Expect: REPLACED! -$300 ($200), Level 8-3+2 = 7.")); break;
-    case 6: Serial.println(F("  [STEP 7/11] Tap Card #5 (Misterio: Ronda de inversion). Expect: +$300 ($500).")); break;
-    case 7: Serial.println(F("  [STEP 8/11] Press COBRAR at level 7. Expect: +$700 ($1200).")); break;
-    case 8: Serial.println(F("  [STEP 9/11] Press COBRAR again. Expect: asks 'Entraste a una sala?'. Press COBRAR (=Si): +$700 ($1900).")); break;
-    case 9: Serial.println(F("  [STEP 10/11] Tap Card #6 (Dato OIT Trivia), then press COBRAR (=Si). Expect: +$100 ($2000).")); break;
-    case 10: Serial.println(F("  [STEP 11/11] Press button ATRAS/CANCELAR to return to the 3-startup Leaderboard on OLED.")); break;
+    case 0: Serial.println(F("  [STEP 1/11] Press COBRAR on the start screen. Expect: draw animation, NotCow starts (forced in test).")); break;
+    case 1: Serial.println(F("  [STEP 2/11] Tap Card #4 (Marie Curri - NOT in NotCow guide). Expect: BLOCKED (action not used).")); break;
+    case 2: Serial.println(F("  [STEP 3/11] Tap Card #1 (Yoni Aiv, Humano $200, +3). Expect: -$200 ($300), Level 2 -> 5. Action used.")); break;
+    case 3: Serial.println(F("  [STEP 4/11] Tap Card #3 (Sergio Larrayn). Expect: BLOCKED - only one action per turn.")); break;
+    case 4: Serial.println(F("  [STEP 5/11] Press ATRAS 3 times (end NotCow, Fintubal, Ziptedi turns). Expect: NotCow's turn again.")); break;
+    case 5: Serial.println(F("  [STEP 6/11] Press COBRAR at level 5. Expect: +$500 ($800), no question (hired since last cobro).")); break;
+    case 6: Serial.println(F("  [STEP 7/11] Press ATRAS 3 times. Expect: NotCow's turn again.")); break;
+    case 7: Serial.println(F("  [STEP 8/11] Tap Card #2 (Ray Eims, SAME role as Yoni). Expect: REPLACED! -$300 ($500), Level 5-3+2 = 4.")); break;
+    case 8: Serial.println(F("  [STEP 9/11] Press ATRAS 3 times. Expect: NotCow's turn again.")); break;
+    case 9: Serial.println(F("  [STEP 10/11] Tap Card #6 (Dato OIT), then press COBRAR (=Si). Expect: +$100 ($600).")); break;
+    case 10: Serial.println(F("  [STEP 11/11] Press ATRAS 3 times, then tap Card #5 (Ronda de inversion). Expect: +$300 ($900).")); break;
   }
 }
 
@@ -539,11 +616,80 @@ void renderScreen() {
   }
 #endif
 
-  if (console_state == STATE_IDLE_LEADERBOARD) {
+  if (console_state == STATE_START) {
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(31, 3);
+    display.print(F("HEADHUNTERS"));
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(13, 17); display.print(F("en la era de la IA"));
+    // "NotCow  Fintubal" / "Ziptedi" (all three don't fit on one 21-char line)
+    display.setCursor(0, 30);
+    for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
+      if (p == 2) display.setCursor(0, 40);
+      else if (p) display.print(F("  "));
+      display.print(COMPANY_ASCII(p));
+    }
+    display.printf("  $%d Nv%u", STARTING_MONEY, STARTING_PROFITABILITY);
+    display.drawLine(0, 52, 127, 52, SH110X_WHITE);
+    display.setCursor(0, 55);
+#ifdef DUMMY_FLOW_TEST
+    display.print(DUMMY_STEP_PROMPT_OLED[dummy_step]);
+#else
+    display.print(F("[$] Empezar partida"));
+#endif
+  } else if (console_state == STATE_ROLL_STARTER) {
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("QUIEN EMPIEZA?"));
+    display.setTextColor(SH110X_WHITE);
+    for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
+      int y = 18 + p * 14;
+      if (p == roll_highlight) {
+        display.fillRect(0, y - 2, 128, 12, SH110X_WHITE);
+        display.setTextColor(SH110X_BLACK);
+      }
+      display.setCursor(30, y);
+      display.print(COMPANY_ASCII(p));
+      display.setTextColor(SH110X_WHITE);
+    }
+  } else if (console_state == STATE_TURN && active_player >= 0) {
+    const PlayerState& ps = players[active_player];
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(3, 3);
+    display.print(F("TURNO: "));
+    display.print(COMPANY_ASCII(active_player));
+    display.setTextColor(SH110X_WHITE);
+    if (!action_done) {
+      display.setCursor(0, 16); display.print(F("1 Lanza dados y mueve"));
+      display.setCursor(0, 26); display.print(F("2 Escanea o [$]Cobra"));
+    } else if (bonus_hire) {
+      display.setCursor(0, 16); display.print(F("Headhunting: escanea"));
+      display.setCursor(0, 26); display.print(F("1 cargo de tu guia"));
+    } else {
+      display.setCursor(0, 16); display.print(F("Accion lista."));
+      display.setCursor(0, 26); display.print(F("Termina tu turno."));
+    }
+    display.setCursor(0, 36);
+    display.printf("$%d Nv%u Cargos %u/%u", ps.money, ps.profitability,
+                   countHiredRoles(active_player), ROLES_PER_COMPANY);
+    display.setCursor(0, 45);
+    if (last_round_by >= 0) display.print(F("** ULTIMA RONDA **"));
+    else if (ps.next_hire_discount > 0) display.printf("Descuento: -$%d", ps.next_hire_discount);
+    display.drawLine(0, 53, 127, 53, SH110X_WHITE);
+    display.setCursor(0, 56);
+#ifdef DUMMY_FLOW_TEST
+    display.print(DUMMY_STEP_PROMPT_OLED[dummy_step]);
+#else
+    display.print(F("[<-] Terminar turno"));
+#endif
+  } else if (console_state == STATE_PEEK_SCORES) {
     display.fillRect(0, 0, 128, 12, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
     display.setCursor(3, 2);
-    display.print(last_round_by >= 0 ? F("HEADHUNTERS ULT.RONDA") : F("HEADHUNTERS"));
+    display.print(last_round_by >= 0 ? F("PUNTAJES  ULT.RONDA") : F("PUNTAJES  Nv Cg  $"));
     display.setTextColor(SH110X_WHITE);
 
     for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
@@ -564,33 +710,10 @@ void renderScreen() {
 
     display.drawLine(0, 52, 127, 52, SH110X_WHITE);
     display.setCursor(0, 55);
-#ifdef DUMMY_FLOW_TEST
-    display.print(DUMMY_STEP_PROMPT_OLED[dummy_step]);
-#else
-    display.print(last_round_by >= 0 ? F("P1-P3 turno [$]Fin") : F("Turno: P1  P2  P3"));
-#endif
-  } else if (console_state == STATE_PLAYER_SELECTED && active_player >= 0) {
-    const PlayerState& ps = players[active_player];
-    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
-    display.setTextColor(SH110X_BLACK);
-    display.setCursor(3, 3);
-    display.print(COMPANY_ASCII(active_player));
-    if (last_round_by >= 0) display.print(F(" ULT.RONDA"));
-    display.setTextColor(SH110X_WHITE);
-
-    display.setCursor(0, 17);
-    display.printf("Plata:$%-5d Nivel:%u", ps.money, ps.profitability);
-    display.setCursor(0, 29);
-    display.printf("Cargos: %u/%u", countHiredRoles(active_player), ROLES_PER_COMPANY);
-    display.setCursor(0, 41);
-    display.print(F("Acerca tu tarjeta"));
-    display.drawLine(0, 52, 127, 52, SH110X_WHITE);
-    display.setCursor(0, 55);
-#ifdef DUMMY_FLOW_TEST
-    display.print(DUMMY_STEP_PROMPT_OLED[dummy_step]);
-#else
-    display.print(F("[<-]Volver [$]Cobrar"));
-#endif
+    if (active_player >= 0) {
+      display.print(F("Turno de "));
+      display.print(COMPANY_ASCII(active_player));
+    }
   } else if (console_state == STATE_SHOW_FEEDBACK) {
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
@@ -602,6 +725,8 @@ void renderScreen() {
     display.setCursor(0, 44); display.print(fb_line3);
 #ifdef DUMMY_FLOW_TEST
     display.setCursor(0, 56); display.print(DUMMY_STEP_PROMPT_OLED[dummy_step]);
+#else
+    display.setCursor(80, 56); display.print(F("[<-] ok"));
 #endif
   } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM) {
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
@@ -660,16 +785,16 @@ void renderScreen() {
       display.setCursor(0, 38); display.print(F("rival, mismo cargo."));
     }
     display.setCursor(0, 53); display.print(F("[<-] Cancelar"));
-  } else if (console_state == STATE_CONFIRM_END_GAME) {
+  } else if (console_state == STATE_WAIT_UPGRADE_SCAN) {
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
     display.setCursor(3, 3);
-    display.print(F("FIN DE LA PARTIDA?"));
+    display.print(F("CAPACITACION"));
     display.setTextColor(SH110X_WHITE);
-    display.setCursor(0, 18); display.print(F("Termino la ultima"));
-    display.setCursor(0, 28); display.print(F("ronda para todos?"));
-    display.setCursor(0, 42); display.print(F("[$] Si, ver ganador"));
-    display.setCursor(0, 53); display.print(F("[<-] No, seguir"));
+    display.setCursor(0, 17); display.print(F("Escanea tu Humano"));
+    display.setCursor(0, 27); display.print(F("(o su Humano+IA)."));
+    display.setCursor(0, 37); display.print(F("Pagas $100."));
+    display.setCursor(0, 53); display.print(F("[<-] No usar"));
   } else if (console_state == STATE_GAME_OVER && winner_player >= 0) {
     display.fillRect(0, 0, 128, 13, SH110X_WHITE);
     display.setTextColor(SH110X_BLACK);
@@ -710,7 +835,6 @@ void resetGame() {
     players[p].money = STARTING_MONEY;
     players[p].profitability = STARTING_PROFITABILITY;
     players[p].next_hire_discount = 0;
-    players[p].upgrade_human_ready = false;
     players[p].eligible_for_payout = false;
     for (uint8_t s = 0; s < ROLES_PER_COMPANY; ++s) {
       players[p].hired_candidate_by_slot[s] = -1;
@@ -727,7 +851,12 @@ void resetGame() {
   return_low_ia_only = false;
   pending_audit_fine = 0;
   swap_my_cand = -1;
-  console_state = STATE_IDLE_LEADERBOARD;
+  starting_player = -1;
+  pending_turn_start = false;
+  action_done = false;
+  bonus_hire = false;
+  turn_number = 0;
+  console_state = STATE_START;
 }
 
 // Resolves a scanned UID to a game card (dummy-test bindings first, then flash registry).
@@ -767,7 +896,7 @@ void printLeaderboard() {
                   players[p].eligible_for_payout ? "SI" : "?");
   }
   if (last_round_by >= 0) {
-    Serial.printf("  ** ULTIMA RONDA (la inicio %s). Al terminar: COBRAR sin jugador = Fin. **\n",
+    Serial.printf("  ** ULTIMA RONDA (la inicio %s): cada otro jugador juega un turno mas. **\n",
                   COMPANY_ASCII(last_round_by));
   }
 }
@@ -812,6 +941,96 @@ void endGame() {
   renderScreen();
 }
 
+// ---------------------------------------------------------------------------
+// Turns
+// ---------------------------------------------------------------------------
+void startTurn(uint8_t player_idx) {
+  active_player = static_cast<int8_t>(player_idx);
+  action_done = false;
+  bonus_hire = false;
+  turn_number++;
+  console_state = STATE_TURN;
+  Serial.printf("\n=== Turno %u: %s — lanza los dados y mueve ===\n", turn_number,
+                COMPANY_ASCII(player_idx));
+  beepOk();
+  renderScreen();
+#ifdef DUMMY_FLOW_TEST
+  if (player_idx == 0 && (dummy_step == 0 || dummy_step == 4 || dummy_step == 6 || dummy_step == 8)) {
+    advanceDummyStep(dummy_step);
+  }
+#endif
+}
+
+// [<-] on the turn screen. After someone completed 5/5, the game ends when the
+// turn would come back to them (everyone else played one last turn).
+void endTurn() {
+  if (active_player < 0) return;
+  uint8_t next = static_cast<uint8_t>((active_player + 1) % NUM_PLAYERS);
+  Serial.printf("Fin del turno de %s.\n", COMPANY_ASCII(active_player));
+  if (last_round_by >= 0 && next == static_cast<uint8_t>(last_round_by)) {
+    endGame();
+    return;
+  }
+  active_player = static_cast<int8_t>(next);
+  pending_turn_start = true;
+  char l2[22];
+  snprintf(l2, sizeof(l2), "%s!", COMPANY_ASCII(next));
+  beepTick();
+  showFeedback("SIGUIENTE TURNO", "Ahora juega:", l2,
+               last_round_by >= 0 ? "Ultima ronda!" : "Lanza los dados.", STATE_TURN);
+  // startTurn() runs when the feedback screen closes (see loop()).
+}
+
+void beginStarterDraw() {
+  console_state = STATE_ROLL_STARTER;
+  roll_started_ms = roll_last_step_ms = millis();
+#ifdef DUMMY_FLOW_TEST
+  starting_player = 0;  // deterministic for the guided test
+#else
+  starting_player = static_cast<int8_t>(esp_random() % NUM_PLAYERS);
+#endif
+  roll_highlight = 0;
+  Serial.println(F("Sorteando quien empieza..."));
+  renderScreen();
+}
+
+void rollStarterTick() {
+  uint32_t now = millis();
+  if (now - roll_started_ms >= ROLL_DURATION_MS) {
+    roll_highlight = static_cast<uint8_t>(starting_player);
+    renderScreen();
+    beepWin();
+    char l2[22], l3[22];
+    snprintf(l2, sizeof(l2), "%s!", COMPANY_ASCII(starting_player));
+    snprintf(l3, sizeof(l3), "Orden: %s>%s>%s", COMPANY_SHORT(starting_player),
+             COMPANY_SHORT((starting_player + 1) % NUM_PLAYERS),
+             COMPANY_SHORT((starting_player + 2) % NUM_PLAYERS));
+    Serial.printf("Empieza %s. %s\n", COMPANY_ASCII(starting_player), l3);
+    active_player = starting_player;
+    turn_number = 0;
+    pending_turn_start = true;
+    showFeedback("EMPIEZA", l2, l3, "Lanza los dados.", STATE_TURN);
+    return;
+  }
+  // Slow down towards the end, like a spinning wheel.
+  uint32_t step = ROLL_STEP_MS + (now - roll_started_ms) / 8;
+  if (now - roll_last_step_ms >= step) {
+    roll_last_step_ms = now;
+    roll_highlight = (roll_highlight + 1) % NUM_PLAYERS;
+    beepTick();
+    renderScreen();
+  }
+}
+
+// The turn's single action is gone (or a Misterio card is required to finish first).
+bool actionBlocked(const char* what) {
+  if (!action_done) return false;
+  Serial.printf("BLOQUEADO: ya hiciste tu accion este turno (%s).\n", what);
+  beepErr();
+  showFeedback("YA JUGASTE", "Solo 1 accion por", "turno. Termina con", "[<-]", STATE_TURN);
+  return true;
+}
+
 // Charge `amount`. If the player can't pay, they must hand back one hired card
 // with no refund instead (or lose what they have if they hired nobody).
 // Returns true if the money was paid; false if a return scan is now pending.
@@ -844,9 +1063,9 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
     Serial.println(F("BLOQUEADO: Ese cargo no pertenece a la guia de tu startup."));
     beepErr();
     showFeedback("BLOQUEADO!", "Cargo fuera de tu", "guia de startup.", COMPANY_ASCII(player_idx),
-                 STATE_PLAYER_SELECTED);
+                 STATE_TURN);
 #ifdef DUMMY_FLOW_TEST
-    if (player_idx == 0 && cand_idx == 0) advanceDummyStep(0);
+    if (player_idx == 0 && cand_idx == 0) advanceDummyStep(1);
 #endif
     return;
   }
@@ -854,27 +1073,22 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
   if (candidate_taken[cand_idx]) {
     Serial.println(F("BLOQUEADO: Postulante ya contratado."));
     beepErr();
-    showFeedback("NO DISPONIBLE", cand.name, "Ya fue contratado.", "", STATE_PLAYER_SELECTED);
+    showFeedback("NO DISPONIBLE", cand.name, "Ya fue contratado.", "", STATE_TURN);
     return;
   }
 
   int8_t prev_idx = ps.hired_candidate_by_slot[slot];
   if (prev_idx == static_cast<int8_t>(cand_idx)) {
     beepErr();
-    showFeedback("YA ES TUYO", cand.name, "Ya trabaja en tu", "startup.", STATE_PLAYER_SELECTED);
+    showFeedback("YA ES TUYO", cand.name, "Ya trabaja en tu", "startup.", STATE_TURN);
     return;
   }
 
   // Replacing a role costs the full price of the new card (old one goes back, no refund).
   bool is_replacement = (prev_idx >= 0);
-  bool is_upgrade = is_replacement && ps.upgrade_human_ready &&
-                    CANDIDATES[prev_idx].modality == MOD_HUMANO &&
-                    cand.modality == MOD_HUMANO_IA;
 
   int16_t final_cost = cand.cost;
-  if (is_upgrade) {
-    final_cost = 100;
-  } else if (ps.next_hire_discount > 0) {
+  if (ps.next_hire_discount > 0) {
     final_cost = max<int16_t>(0, final_cost - ps.next_hire_discount);
   }
 
@@ -883,13 +1097,15 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
     beepErr();
     char buf[32];
     snprintf(buf, sizeof(buf), "Costo:$%d Hay:$%d", final_cost, ps.money);
-    showFeedback("SIN DINERO!", cand.name, buf, "", STATE_PLAYER_SELECTED);
+    showFeedback("SIN DINERO!", cand.name, buf, "", STATE_TURN);
     return;
   }
 
-  // Only consume the upgrade/discount once the hire actually goes through.
-  if (is_upgrade) ps.upgrade_human_ready = false;
-  else if (ps.next_hire_discount > 0) ps.next_hire_discount = 0;
+  // Only consume the discount once the hire actually goes through.
+  if (ps.next_hire_discount > 0) ps.next_hire_discount = 0;
+  bool via_headhunting = bonus_hire;
+  bonus_hire = false;
+  action_done = true;
 
   if (is_replacement) {
     candidate_taken[prev_idx] = false;
@@ -899,7 +1115,7 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
   ps.money -= final_cost;
   ps.profitability += cand.profitability;
   ps.hired_candidate_by_slot[slot] = static_cast<int8_t>(cand_idx);
-  ps.eligible_for_payout = true;  // hiring means you entered a room
+  if (!via_headhunting) ps.eligible_for_payout = true;  // hiring means you entered a room
   candidate_taken[cand_idx] = true;
   bool last_round_started = maybeStartLastRound(player_idx);
 
@@ -917,18 +1133,17 @@ void handleCandidateHireOrReplace(uint8_t player_idx, uint8_t cand_idx) {
   if (last_round_started) {
     beepWin();
     snprintf(l3, sizeof(l3), "+%u Nv:%u ULT.RONDA!", cand.profitability, ps.profitability);
-    showFeedback("5/5 CARGOS!", cand.name, l2, l3, STATE_PLAYER_SELECTED);
+    showFeedback("5/5 CARGOS!", cand.name, l2, l3, STATE_TURN);
   } else {
     beepOk();
     snprintf(l3, sizeof(l3), "+%u rentab. (Nv:%u)", cand.profitability, ps.profitability);
     showFeedback(is_replacement ? "REEMPLAZADO!" : "CONTRATADO!", cand.name, l2, l3,
-                 STATE_PLAYER_SELECTED);
+                 STATE_TURN);
   }
 
 #ifdef DUMMY_FLOW_TEST
   if (player_idx == 0 && cand_idx == 3) advanceDummyStep(2);
-  if (player_idx == 0 && cand_idx == 7) advanceDummyStep(4);
-  if (player_idx == 0 && cand_idx == 4 && is_replacement) advanceDummyStep(5);
+  if (player_idx == 0 && cand_idx == 4 && is_replacement) advanceDummyStep(7);
 #endif
 }
 
@@ -965,7 +1180,7 @@ void handleCandidateReturn(uint8_t player_idx, uint8_t cand_idx) {
   if (refund > 0) snprintf(l2, sizeof(l2), "Reembolso: +$%d", refund);
   else            snprintf(l2, sizeof(l2), "Sin reembolso");
   snprintf(l3, sizeof(l3), "Nv:%u Saldo:$%d", ps.profitability, ps.money);
-  showFeedback("DEVUELTO", cand.name, l2, l3, STATE_PLAYER_SELECTED);
+  showFeedback("DEVUELTO", cand.name, l2, l3, STATE_TURN);
 }
 
 // Occupation card (Insight): pay to see the role's OIT score and best modality.
@@ -977,7 +1192,7 @@ void handleInsightScan(uint8_t player_idx, uint8_t occ_idx) {
     beepErr();
     char l1[22];
     snprintf(l1, sizeof(l1), "Insight cuesta $%d.", INSIGHT_COST);
-    showFeedback("SIN DINERO!", l1, "", "", STATE_PLAYER_SELECTED);
+    showFeedback("SIN DINERO!", l1, "", "", STATE_TURN);
     return;
   }
   ps.money -= INSIGHT_COST;
@@ -995,7 +1210,7 @@ void handleInsightScan(uint8_t player_idx, uint8_t occ_idx) {
   snprintf(l2, sizeof(l2), "OIT %.2f %s", occ.oit_score, occ.oit_level);
   if (strlen(l2) > 21) snprintf(l2, sizeof(l2), "OIT %.2f", occ.oit_score);
   snprintf(l3, sizeof(l3), "Rinde mas: %s", modalityLabel(occ.ideal_modality));
-  showFeedback(title, occ.cargo, l2, l3, STATE_PLAYER_SELECTED);
+  showFeedback(title, occ.cargo, l2, l3, STATE_TURN);
 }
 
 // Owner (player index) of a hired candidate, or -1.
@@ -1066,10 +1281,73 @@ void handleSwapScan(uint8_t player_idx, uint8_t cand_idx) {
   char l3[32];
   snprintf(l3, sizeof(l3), "Nv: tu %u / %s %u", me.profitability, COMPANY_SHORT(owner),
            them.profitability);
-  showFeedback("INTERCAMBIO!", a, b, l3, STATE_PLAYER_SELECTED);
+  showFeedback("INTERCAMBIO!", a, b, l3, STATE_TURN);
 }
 
 void payReception(uint8_t player_idx);
+
+// Index of the Humano + IA card for an occupation, or -1.
+int8_t hybridFor(uint8_t occupation_id) {
+  for (uint8_t c = 0; c < NUM_CANDIDATES; ++c) {
+    if (CANDIDATES[c].occupation_id == occupation_id && CANDIDATES[c].modality == MOD_HUMANO_IA) return c;
+  }
+  return -1;
+}
+
+// Capacitacion interna: a hired Humano whose Humano + IA is still free.
+bool upgradePossible(uint8_t player_idx) {
+  for (uint8_t s = 0; s < ROLES_PER_COMPANY; ++s) {
+    int8_t ci = players[player_idx].hired_candidate_by_slot[s];
+    if (ci < 0 || CANDIDATES[ci].modality != MOD_HUMANO) continue;
+    int8_t h = hybridFor(CANDIDATES[ci].occupation_id);
+    if (h >= 0 && !candidate_taken[h]) return true;
+  }
+  return false;
+}
+
+// Accepts either card of the pair: the Humano you hired, or the free Humano + IA
+// of that same cargo (players naturally scan their own Humano first).
+void handleUpgradeScan(uint8_t player_idx, uint8_t scanned_idx) {
+  PlayerState& ps = players[player_idx];
+  const CandidateDef& scanned = CANDIDATES[scanned_idx];
+  int8_t slot = findRequiredSlot(player_idx, scanned.occupation_id);
+  int8_t prev = slot >= 0 ? ps.hired_candidate_by_slot[slot] : -1;
+  int8_t hyb = hybridFor(scanned.occupation_id);
+  const char* why = nullptr;
+  if (scanned.modality == MOD_IA_SOLA) {
+    why = "Es una IA sola.";
+  } else if (prev < 0 || CANDIDATES[prev].modality != MOD_HUMANO) {
+    why = "No tienes a su Humano";
+  } else if (hyb < 0 || candidate_taken[hyb]) {
+    why = "Su Hum+IA esta usado";
+  }
+  if (why) {
+    beepErr();
+    char a[22];
+    asciiFold(scanned.name, a, sizeof(a));
+    Serial.printf("Capacitacion: %s no sirve (%s).\n", a, why);
+    showFeedback("NO SIRVE", scanned.name, why, "Escanea otro o [<-]", STATE_WAIT_UPGRADE_SCAN);
+    return;
+  }
+  uint8_t cand_idx = static_cast<uint8_t>(hyb);
+  const CandidateDef& cand = CANDIDATES[cand_idx];
+  constexpr int16_t UPGRADE_COST = 100;
+  ps.money -= UPGRADE_COST;
+  candidate_taken[prev] = false;
+  candidate_taken[cand_idx] = true;
+  ps.profitability = ps.profitability - CANDIDATES[prev].profitability + cand.profitability;
+  ps.hired_candidate_by_slot[slot] = static_cast<int8_t>(cand_idx);
+  char a[22], b[22];
+  asciiFold(CANDIDATES[prev].name, a, sizeof(a));
+  asciiFold(cand.name, b, sizeof(b));
+  Serial.printf("Capacitacion: %s -> %s (-$%d) | Nivel %u | Saldo $%d\n", a, b, UPGRADE_COST,
+                ps.profitability, ps.money);
+  beepOk();
+  printLeaderboard();
+  char l3[32];
+  snprintf(l3, sizeof(l3), "-$%d  Nivel: %u", UPGRADE_COST, ps.profitability);
+  showFeedback("CAPACITADO!", a, b, l3, STATE_TURN);
+}
 
 void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
   PlayerState& ps = players[player_idx];
@@ -1077,6 +1355,7 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
   char l2[32] = "", l3[32] = "";
 
   Serial.printf("MISTERIO (#%u): %s\n", card.id, card.title);
+  action_done = true;  // drawing a Misterio card is this turn's action
 
   switch (card.effect) {
     case MYS_ADD_MONEY:
@@ -1084,9 +1363,9 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       snprintf(l2, sizeof(l2), "+$%d al banco", card.value);
       snprintf(l3, sizeof(l3), "Saldo: $%d", ps.money);
       beepOk();
-      showFeedback("MISTERIO", card.title, l2, l3, STATE_PLAYER_SELECTED);
+      showFeedback("MISTERIO", card.title, l2, l3, STATE_TURN);
 #ifdef DUMMY_FLOW_TEST
-      if (player_idx == 0 && card_idx == 0) advanceDummyStep(6);
+      if (player_idx == 0 && card_idx == 0) advanceDummyStep(10);
 #endif
       break;
     case MYS_BONUS_PER_MODALITY: {
@@ -1100,7 +1379,7 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       snprintf(l2, sizeof(l2), "%d x $%d = +$%d", count, card.value, delta);
       snprintf(l3, sizeof(l3), "Saldo: $%d", ps.money);
       beepOk();
-      showFeedback("MISTERIO", card.title, l2, l3, STATE_PLAYER_SELECTED);
+      showFeedback("MISTERIO", card.title, l2, l3, STATE_TURN);
       break;
     }
     case MYS_PENALTY_PER_MODALITY: {
@@ -1118,7 +1397,7 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       }
       snprintf(l2, sizeof(l2), "Multa: -$%d", delta);
       snprintf(l3, sizeof(l3), "Saldo: $%d", ps.money);
-      showFeedback("MISTERIO", card.title, l2, l3, STATE_PLAYER_SELECTED);
+      showFeedback("MISTERIO", card.title, l2, l3, STATE_TURN);
       break;
     }
     case MYS_PENALTY_LOW_IA: {
@@ -1149,14 +1428,14 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
         beepOk();
       }
       snprintf(l3, sizeof(l3), "Saldo: $%d", ps.money);
-      showFeedback("AUDITORIA", card.title, l2, l3, STATE_PLAYER_SELECTED);
+      showFeedback("AUDITORIA", card.title, l2, l3, STATE_TURN);
       break;
     }
     case MYS_FORCE_RECEPTION_NO_PAY:
       ps.eligible_for_payout = false;
       beepErr();
       showFeedback("CAIDA SERVIDOR", "Vuelve a Recepcion", "SIN cobrar trimestre", "",
-                   STATE_PLAYER_SELECTED);
+                   STATE_TURN);
       break;
     case MYS_ENABLE_PAYOUT_RECEPTION:
       // "Ve directo a la Recepcion y cobra tu trimestre": pay it right away.
@@ -1167,7 +1446,7 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       if (!swapPossible(player_idx)) {
         beepOk();
         showFeedback("FUGA DE TALENTO", "Nadie tiene un cargo", "igual al tuyo:", "no pasa nada.",
-                     STATE_PLAYER_SELECTED);
+                     STATE_TURN);
         break;
       }
       swap_my_cand = -1;
@@ -1180,19 +1459,36 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
       ps.next_hire_discount += card.value;
       beepOk();
       showFeedback("DESCUENTO", "Proxima contratacion", "cuesta -$100!", "",
-                   STATE_PLAYER_SELECTED);
+                   STATE_TURN);
       break;
     case MYS_UPGRADE_HUMAN_TO_HYBRID:
-      ps.upgrade_human_ready = true;
+      if (ps.money < 100) {
+        beepOk();
+        showFeedback("CAPACITACION", "Cuesta $100 y no", "te alcanza:", "no pasa nada.", STATE_TURN);
+        break;
+      }
+      if (!upgradePossible(player_idx)) {
+        beepOk();
+        showFeedback("CAPACITACION", COMPANY_ASCII(player_idx), "no tiene un Humano", "con Hum+IA libre.",
+                     STATE_TURN);
+        break;
+      }
+      console_state = STATE_WAIT_UPGRADE_SCAN;
+      Serial.println(F("Capacitacion: escanea tu Humano (o su Humano + IA). Pagas $100."));
       beepOk();
-      showFeedback("CAPACITACION", "Mejora 1 Humano a", "Hum+IA por solo $100", "",
-                   STATE_PLAYER_SELECTED);
+      renderScreen();
+      return;
+    case MYS_DIRECT_HIRE:
+      bonus_hire = true;
+      beepOk();
+      showFeedback("HEADHUNTING!", "Contrata ahora en", "cualquier sala de tu", "guia: escanea.",
+                   STATE_TURN);
       break;
     case MYS_RETURN_CANDIDATE_HALF:
       if (countHiredRoles(player_idx) == 0) {
         beepOk();
         showFeedback("REESTRUCTURACION", "No tienes a nadie", "contratado: no pasa", "nada.",
-                     STATE_PLAYER_SELECTED);
+                     STATE_TURN);
         break;
       }
       return_forced = false;
@@ -1212,7 +1508,7 @@ void handleMysteryScan(uint8_t player_idx, uint8_t card_idx) {
     case MYS_BOARD_INFO_ONLY:
     default:
       beepOk();
-      showFeedback("MISTERIO", card.title, "Aplica en el tablero", "", STATE_PLAYER_SELECTED);
+      showFeedback("MISTERIO", card.title, "Aplica en el tablero", "", STATE_TURN);
       break;
   }
   printLeaderboard();
@@ -1225,6 +1521,7 @@ void payReception(uint8_t player_idx) {
   int16_t payout = ps.profitability * RECEPTION_PAYOUT_PER_LEVEL;
   ps.money += payout;
   ps.eligible_for_payout = false;
+  action_done = true;
 
   Serial.printf("%s cobro +$%d (%u x $%d) -> Saldo: $%d\n",
                 COMPANY_ASCII(player_idx), payout, ps.profitability,
@@ -1235,12 +1532,10 @@ void payReception(uint8_t player_idx) {
   char l1[32], l2[32];
   snprintf(l1, sizeof(l1), "+$%d (%u x $%d)", payout, ps.profitability, RECEPTION_PAYOUT_PER_LEVEL);
   snprintf(l2, sizeof(l2), "Saldo total: $%d", ps.money);
-  showFeedback("COBRO RECEPCION", l1, l2, "", STATE_PLAYER_SELECTED);
+  showFeedback("COBRO RECEPCION", l1, l2, "", STATE_TURN);
 
 #ifdef DUMMY_FLOW_TEST
-  if (player_idx == 0 && (dummy_step == 3 || dummy_step == 7 || dummy_step == 8)) {
-    advanceDummyStep(dummy_step);
-  }
+  if (player_idx == 0 && dummy_step == 5) advanceDummyStep(5);
 #endif
 }
 
@@ -1582,8 +1877,19 @@ void pollSerial() {
       dumpRegistrySerial();
     } else if (strcmp(buf, "admin") == 0) {
       if (console_state != STATE_ADMIN) enterAdmin(console_state);
+    } else if (strcmp(buf, "oled") == 0) {
+      Serial.printf("Orientacion OLED: %u (%s). Usa: oled 0|1|2\n", oled_orientation,
+                    oledOrientationLabel(oled_orientation));
+    } else if (strncmp(buf, "oled ", 5) == 0 && buf[5] >= '0' && buf[5] <= '2' && buf[6] == '\0') {
+      uint8_t mode = static_cast<uint8_t>(buf[5] - '0');
+      applyOledOrientation(mode);
+      saveOledOrientation(mode);
+      Serial.printf("Orientacion OLED -> %u (%s), guardada en flash.\n", mode,
+                    oledOrientationLabel(mode));
+      renderScreen();
     } else if (strcmp(buf, "help") == 0) {
-      Serial.println(F("Comandos: dump (lista UIDs en flash), admin (abre modo admin)"));
+      Serial.println(F("Comandos: dump (lista UIDs en flash), admin (abre modo admin),"));
+      Serial.println(F("          oled 0|1|2 (pantalla: 0 normal, 1 volteada vertical, 2 girada 180)"));
     } else {
       Serial.printf("Comando desconocido: %s (escribe 'help')\n", buf);
     }
@@ -1605,6 +1911,11 @@ void setup() {
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   oled_ok = display.begin(OLED_I2C_ADDR, true);
   Serial.printf("OLED SH1106 (0x%02X): %s\n", OLED_I2C_ADDR, oled_ok ? "OK" : "NOT FOUND");
+  if (oled_ok) {
+    applyOledOrientation(loadOledOrientation());
+    Serial.printf("Orientacion OLED: %u (%s) — cambiar con 'oled 0|1|2'\n", oled_orientation,
+                  oledOrientationLabel(oled_orientation));
+  }
 
   SPI.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_RFID_SS);
   rfid.PCD_Init();
@@ -1638,7 +1949,7 @@ void setup() {
   if (assigned < NUM_CARDS) {
     char l1[22];
     snprintf(l1, sizeof(l1), "Tarjetas: %u/%u", assigned, NUM_CARDS);
-    showFeedback("FALTAN TARJETAS", l1, "Asignalas en el", "modo admin.", STATE_IDLE_LEADERBOARD);
+    showFeedback("FALTAN TARJETAS", l1, "Asignalas en el", "modo admin.", STATE_START);
   } else {
     renderScreen();
   }
@@ -1659,18 +1970,46 @@ void loop() {
   }
   if (checkAdminHold()) return;
 
-  // Auto-dismiss feedback screen after timeout
-  if (console_state == STATE_SHOW_FEEDBACK && (millis() - fb_started_ms >= FEEDBACK_DURATION_MS)) {
-    console_state = state_after_feedback;
-    renderScreen();
+  // Feedback screen: closes after a timeout, or early with [<-] (cancel). The tap
+  // that closes it does nothing else (so a double-tap can't end the turn). Other
+  // buttons are ignored while a message is up, so nobody skips it by accident.
+  if (console_state == STATE_SHOW_FEEDBACK) {
+    bool skip = btnTapped(BTN_BACK);
+    bool other_btn = btnPressed(BTN_P1) || btnPressed(BTN_P2) || btnPressed(BTN_P3) ||
+                     btnPressed(BTN_COBRAR);
+    if (skip || millis() - fb_started_ms >= FEEDBACK_DURATION_MS) {
+      console_state = state_after_feedback;
+      if (pending_turn_start && console_state == STATE_TURN) {
+        pending_turn_start = false;
+        startTurn(static_cast<uint8_t>(active_player));
+      } else {
+        renderScreen();
+      }
+      if (skip) return;
+    } else if (other_btn) {
+      return;
+    }
   }
 
-  // Handle Game Over reset
+  if (console_state == STATE_PEEK_SCORES) {
+    bool any_btn = btnPressed(BTN_P1) || btnPressed(BTN_P2) || btnPressed(BTN_P3) ||
+                   btnPressed(BTN_COBRAR) || btnTapped(BTN_BACK);
+    if (any_btn || millis() - peek_started_ms >= PEEK_DURATION_MS) {
+      console_state = peek_return_state;
+      renderScreen();
+    }
+    return;
+  }
+
+  if (console_state == STATE_ROLL_STARTER) {
+    rollStarterTick();
+    return;
+  }
+
   if (console_state == STATE_GAME_OVER) {
     if (btnTapped(BTN_BACK)) {
       resetGame();
       beepOk();
-      printLeaderboard();
       renderScreen();
     }
     return;
@@ -1678,71 +2017,71 @@ void loop() {
 
 #ifdef DUMMY_FLOW_TEST
   if (console_state == STATE_DUMMY_ENROLL) {
-    uint32_t uid_hash;
-    if (readCard(uid_hash)) {
-      bool dup = false;
-      for (uint8_t i = 0; i < dummy_enrolled; ++i) {
-        if (dummy_uids[i] == uid_hash) dup = true;
-      }
-      if (dup) {
-        Serial.println(F("  [WARN] Already used that card! Tap a DIFFERENT card."));
-        beepErr();
-      } else {
-        dummy_uids[dummy_enrolled] = uid_hash;
-        Serial.printf("  [OK] Bound UID 0x%08lX -> %s\n",
-                      static_cast<unsigned long>(uid_hash), DUMMY_ENROLL_LABELS[dummy_enrolled]);
-        dummy_enrolled++;
-        beepOk();
-        if (dummy_enrolled >= DUMMY_CARD_COUNT) {
-          console_state = STATE_IDLE_LEADERBOARD;
-          printLeaderboard();
-          printDummyStepPrompt();
-        } else {
-          Serial.printf("  Tap %s\n", DUMMY_ENROLL_SERIAL[dummy_enrolled]);
-        }
-        renderScreen();
-      }
-    }
+    display.fillRect(0, 0, 128, 13, SH110X_WHITE);
+    display.setTextColor(SH110X_BLACK);
+    display.setCursor(4, 3);
+    display.print(F("DUMMY TEST: ENROLL"));
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(0, 18);
+    display.print(F("Acerca tarjeta para:"));
+    display.setCursor(0, 32);
+    display.print(DUMMY_ENROLL_LABELS[dummy_enrolled]);
+    display.drawRect(0, 48, 128, 12, SH110X_WHITE);
+    int w = (dummy_enrolled * 124) / DUMMY_CARD_COUNT;
+    if (w > 0) display.fillRect(2, 50, w, 8, SH110X_WHITE);
+    display.display();
     return;
   }
 #endif
 
-  // A forced return (couldn't pay) must be resolved before anything else, even
-  // while its feedback screen is still showing.
+  if (console_state == STATE_START) {
+    uint32_t uid_hash;
+    if (btnPressed(BTN_COBRAR)) {
+      beepOk();
+      beginStarterDraw();
+    } else if (readCard(uid_hash)) {
+      beepErr();
+      showFeedback("AUN NO", "Primero empieza la", "partida con [$].", "", STATE_START);
+    }
+    return;
+  }
+
+  // From here on a game is running and active_player is the turn's player.
+  if (active_player < 0) return;
+  const uint8_t ap = static_cast<uint8_t>(active_player);
+
+  // A forced return (couldn't pay) or the audit choice must be resolved first,
+  // even while its feedback screen is still showing.
   ConsoleState effective_state =
       console_state == STATE_SHOW_FEEDBACK ? state_after_feedback : console_state;
   bool locked = return_forced || effective_state == STATE_WAIT_AUDIT_CHOICE;
 
-  // Player selector buttons (P1, P2, P3)
-  for (uint8_t p = 0; p < NUM_PLAYERS && !locked; ++p) {
-    if (btnPressed(p)) {
-      active_player = static_cast<int8_t>(p);
-      console_state = STATE_PLAYER_SELECTED;
-      Serial.printf("Jugador activo: %s\n", COMPANY_ASCII(p));
-      beepOk();
-      renderScreen();
+  // P1-P3: peek at the scoreboard during a turn.
+  if (console_state == STATE_TURN) {
+    for (uint8_t p = 0; p < NUM_PLAYERS; ++p) {
+      if (btnPressed(p)) {
+        peek_return_state = STATE_TURN;
+        peek_started_ms = millis();
+        console_state = STATE_PEEK_SCORES;
+        printLeaderboard();
+        beepTick();
+        renderScreen();
+        return;
+      }
     }
   }
 
-  // BACK / CANCEL button (acts on release)
+  // BACK / CANCEL / END TURN (acts on release)
   if (btnTapped(BTN_BACK)) {
     if (console_state == STATE_WAIT_TRIVIA_CONFIRM) {
       pending_trivia_reward = 0;
       Serial.println(F("Trivia fallida: $0."));
       beepErr();
-      showFeedback("DATO OIT", "Respuesta incorrecta", "Cobras $0.", "", STATE_PLAYER_SELECTED);
+      showFeedback("DATO OIT", "Respuesta incorrecta", "Cobras $0.", "", STATE_TURN);
     } else if (console_state == STATE_WAIT_PAYOUT_CONFIRM) {
       Serial.println(F("Sin cobro: primero entra a una sala."));
       beepErr();
-      showFeedback("SIN COBRO", "Entra a una sala", "antes de volver a", "Recepcion.",
-                   STATE_PLAYER_SELECTED);
-#ifdef DUMMY_FLOW_TEST
-      if (dummy_step == 1) advanceDummyStep(1);
-#endif
-    } else if (console_state == STATE_CONFIRM_END_GAME) {
-      console_state = STATE_IDLE_LEADERBOARD;
-      beepOk();
-      renderScreen();
+      showFeedback("SIN COBRO", "Entra a una sala", "antes de volver a", "Recepcion.", STATE_TURN);
     } else if (console_state == STATE_WAIT_AUDIT_CHOICE) {
       return_forced = true;  // return_low_ia_only is already set
       pending_audit_fine = 0;
@@ -1750,35 +2089,33 @@ void loop() {
       beepTick();
       console_state = STATE_WAIT_RETURN_SCAN;
       renderScreen();
-    } else if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
+    } else if (console_state == STATE_WAIT_SWAP_MINE || console_state == STATE_WAIT_SWAP_THEIRS) {
       swap_my_cand = -1;
-      console_state = STATE_PLAYER_SELECTED;
+      console_state = STATE_TURN;
       Serial.println(F("Intercambio cancelado."));
+      beepOk();
+      renderScreen();
+    } else if (console_state == STATE_WAIT_UPGRADE_SCAN) {
+      console_state = STATE_TURN;
+      Serial.println(F("Capacitacion no usada."));
       beepOk();
       renderScreen();
     } else if (locked) {
       beepErr();  // must hand back a card first
     } else if (console_state == STATE_WAIT_RETURN_SCAN) {
-      console_state = STATE_PLAYER_SELECTED;
+      console_state = STATE_TURN;
       Serial.println(F("Devolucion cancelada."));
       beepOk();
       renderScreen();
-    } else {
-      active_player = -1;
-      console_state = STATE_IDLE_LEADERBOARD;
-      printLeaderboard();
-      beepOk();
-#ifdef DUMMY_FLOW_TEST
-      if (dummy_step == 10) advanceDummyStep(10);
-#endif
-      renderScreen();
+    } else if (console_state == STATE_TURN) {
+      endTurn();
     }
   }
 
   // COBRAR / CONFIRM button
   if (btnPressed(BTN_COBRAR)) {
-    if (console_state == STATE_WAIT_AUDIT_CHOICE && active_player >= 0) {
-      PlayerState& ps = players[active_player];
+    if (console_state == STATE_WAIT_AUDIT_CHOICE) {
+      PlayerState& ps = players[ap];
       ps.money -= pending_audit_fine;
       Serial.printf("Auditoria: multa -$%d -> Saldo: $%d\n", pending_audit_fine, ps.money);
       char l1[22], l2[22];
@@ -1788,85 +2125,74 @@ void loop() {
       return_low_ia_only = false;
       beepOk();
       printLeaderboard();
-      showFeedback("AUDITORIA", l1, l2, "", STATE_PLAYER_SELECTED);
-    } else if (locked) {
-      beepErr();  // must hand back a card first
-    } else if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
-      beepErr();  // scan the cards or cancel
-    } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM && active_player >= 0) {
-      players[active_player].money += pending_trivia_reward;
+      showFeedback("AUDITORIA", l1, l2, "", STATE_TURN);
+    } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM) {
+      players[ap].money += pending_trivia_reward;
       int16_t reward = pending_trivia_reward;
       pending_trivia_reward = 0;
-      Serial.printf("Trivia correcta! +$%d -> Saldo: $%d\n", reward, players[active_player].money);
+      Serial.printf("Trivia correcta! +$%d -> Saldo: $%d\n", reward, players[ap].money);
       beepOk();
       printLeaderboard();
       char l1[22], l2[22];
       snprintf(l1, sizeof(l1), "+$%d Dato OIT", reward);
-      snprintf(l2, sizeof(l2), "Saldo: $%d", players[active_player].money);
-      showFeedback("CORRECTO!", l1, l2, "", STATE_PLAYER_SELECTED);
+      snprintf(l2, sizeof(l2), "Saldo: $%d", players[ap].money);
+      showFeedback("CORRECTO!", l1, l2, "", STATE_TURN);
 #ifdef DUMMY_FLOW_TEST
       if (dummy_step == 9) advanceDummyStep(9);
 #endif
-    } else if (console_state == STATE_WAIT_PAYOUT_CONFIRM && active_player >= 0) {
-      payReception(static_cast<uint8_t>(active_player));
-    } else if (console_state == STATE_CONFIRM_END_GAME) {
-      endGame();
-    } else if (console_state == STATE_WAIT_RETURN_SCAN) {
-      beepErr();  // must scan a candidate or cancel
-    } else if (active_player >= 0) {
-      handleCobrar(static_cast<uint8_t>(active_player));
-    } else if (last_round_by >= 0) {
-      beepTick();
-      console_state = STATE_CONFIRM_END_GAME;
-      renderScreen();
+    } else if (console_state == STATE_WAIT_PAYOUT_CONFIRM) {
+      payReception(ap);
+    } else if (console_state == STATE_TURN) {
+      if (!actionBlocked("cobro")) handleCobrar(ap);
     } else {
-      Serial.println(F("Selecciona un jugador primero (P1, P2 o P3)."));
-      beepErr();
-      showFeedback("ELIGE JUGADOR", "Presiona P1, P2 o P3", "antes de cobrar.", "",
-                   STATE_IDLE_LEADERBOARD);
+      beepErr();  // finish the current prompt first (scan a card or [<-])
     }
   }
 
-  // NFC / RFID Scan
+  // NFC / RFID scan
   uint32_t uid_hash;
   if (readCard(uid_hash)) {
     CardRef card;
     bool known = resolveCard(uid_hash, card);
 
-    if (active_player < 0) {
-      Serial.println(F("Selecciona un jugador primero (P1, P2 o P3)."));
-      beepErr();
-      showFeedback("ELIGE JUGADOR", "Presiona P1, P2 o P3", "antes de escanear.", "",
-                   STATE_IDLE_LEADERBOARD);
-    } else if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
-      if (known && card.kind == CARD_CANDIDATE) {
-        handleSwapScan(static_cast<uint8_t>(active_player), card.index);
-      } else {
-        beepErr();
-      }
+    // A card tapped while "Ahora juega: X" is showing belongs to X's new turn.
+    if (pending_turn_start && console_state == STATE_SHOW_FEEDBACK) {
+      pending_turn_start = false;
+      startTurn(ap);
+      effective_state = STATE_TURN;
+    }
+
+    if (effective_state == STATE_WAIT_SWAP_MINE || effective_state == STATE_WAIT_SWAP_THEIRS) {
+      if (known && card.kind == CARD_CANDIDATE) handleSwapScan(ap, card.index);
+      else beepErr();
+    } else if (effective_state == STATE_WAIT_UPGRADE_SCAN) {
+      if (known && card.kind == CARD_CANDIDATE) handleUpgradeScan(ap, card.index);
+      else beepErr();
     } else if (effective_state == STATE_WAIT_RETURN_SCAN) {
       if (known && card.kind == CARD_CANDIDATE) {
-        handleCandidateReturn(static_cast<uint8_t>(active_player), card.index);
+        handleCandidateReturn(ap, card.index);
       } else {
         Serial.println(F("Escanea la tarjeta del postulante a devolver."));
         beepErr();
       }
-    } else if (console_state == STATE_WAIT_TRIVIA_CONFIRM ||
-               console_state == STATE_WAIT_PAYOUT_CONFIRM ||
-               console_state == STATE_CONFIRM_END_GAME ||
-               effective_state == STATE_WAIT_AUDIT_CHOICE) {
-      beepErr();  // answer the question first (COBRAR = Si / ATRAS = No)
+    } else if (effective_state != STATE_TURN) {
+      beepErr();  // answer the question on screen first (COBRAR = Si / ATRAS = No)
     } else if (!known) {
       Serial.println(F("Tag no registrado. Asignalo en el modo admin."));
       beepErr();
       showFeedback("TAG DESCONOCIDO", "Tarjeta sin asignar.", "Registrala en el", "modo admin.",
-                   STATE_PLAYER_SELECTED);
+                   STATE_TURN);
     } else if (card.kind == CARD_CANDIDATE) {
-      handleCandidateHireOrReplace(static_cast<uint8_t>(active_player), card.index);
+      if (bonus_hire || !actionBlocked("contratar")) {
+        handleCandidateHireOrReplace(ap, card.index);
+      }
+#ifdef DUMMY_FLOW_TEST
+      if (action_done && card.index == 7 && dummy_step == 3) advanceDummyStep(3);
+#endif
     } else if (card.kind == CARD_OCCUPATION) {
-      handleInsightScan(static_cast<uint8_t>(active_player), card.index);
+      handleInsightScan(ap, card.index);  // free extra, not the turn's action
     } else {
-      handleMysteryScan(static_cast<uint8_t>(active_player), card.index);
+      if (!actionBlocked("misterio")) handleMysteryScan(ap, card.index);
     }
   }
 }

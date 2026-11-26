@@ -1,0 +1,410 @@
+{
+  "format": "headhunters-nfc-uids",
+  "version": 1,
+  "exported_at": "2026-11-24T16:11:50.124Z",
+  "uid_key": "First 4 UID bytes in RF order, hex (matches firmware uidToHash)",
+  "assigned": 50,
+  "total": 50,
+  "cards": [
+    {
+      "code": "C01",
+      "kind": "candidate",
+      "index": 0,
+      "name": "Marie Curri",
+      "uid": "CE3EB8DB",
+      "uid_full": "CE:3E:B8:DB"
+    },
+    {
+      "code": "C02",
+      "kind": "candidate",
+      "index": 1,
+      "name": "Elon Mug",
+      "uid": "1762B8DB",
+      "uid_full": "17:62:B8:DB"
+    },
+    {
+      "code": "C03",
+      "kind": "candidate",
+      "index": 2,
+      "name": "Autodesko Fusión",
+      "uid": "67C8B7DB",
+      "uid_full": "67:C8:B7:DB"
+    },
+    {
+      "code": "C04",
+      "kind": "candidate",
+      "index": 3,
+      "name": "Yoni Aiv",
+      "uid": "219CB8DB",
+      "uid_full": "21:9C:B8:DB"
+    },
+    {
+      "code": "C05",
+      "kind": "candidate",
+      "index": 4,
+      "name": "Ray Eims",
+      "uid": "111C62CB",
+      "uid_full": "11:1C:62:CB"
+    },
+    {
+      "code": "C06",
+      "kind": "candidate",
+      "index": 5,
+      "name": "Vizcomba",
+      "uid": "E29261CB",
+      "uid_full": "E2:92:61:CB"
+    },
+    {
+      "code": "C07",
+      "kind": "candidate",
+      "index": 6,
+      "name": "Annie Leivobitz",
+      "uid": "0B7DB8DB",
+      "uid_full": "0B:7D:B8:DB"
+    },
+    {
+      "code": "C08",
+      "kind": "candidate",
+      "index": 7,
+      "name": "Sergio Larrayn",
+      "uid": "4E24B8DB",
+      "uid_full": "4E:24:B8:DB"
+    },
+    {
+      "code": "C09",
+      "kind": "candidate",
+      "index": 8,
+      "name": "Adobo Firefly",
+      "uid": "0D6AB5DB",
+      "uid_full": "0D:6A:B5:DB"
+    },
+    {
+      "code": "C10",
+      "kind": "candidate",
+      "index": 9,
+      "name": "Mery Kei",
+      "uid": "3101B3DB",
+      "uid_full": "31:01:B3:DB"
+    },
+    {
+      "code": "C11",
+      "kind": "candidate",
+      "index": 10,
+      "name": "Steve Yobs",
+      "uid": "F2601249",
+      "uid_full": "F2:60:12:49"
+    },
+    {
+      "code": "C12",
+      "kind": "candidate",
+      "index": 11,
+      "name": "Agente Fuerza",
+      "uid": "EE8C60CB",
+      "uid_full": "EE:8C:60:CB"
+    },
+    {
+      "code": "C13",
+      "kind": "candidate",
+      "index": 12,
+      "name": "Paula Escher",
+      "uid": "FE10745B",
+      "uid_full": "FE:10:74:5B"
+    },
+    {
+      "code": "C14",
+      "kind": "candidate",
+      "index": 13,
+      "name": "Milton Glasé",
+      "uid": "A7C31249",
+      "uid_full": "A7:C3:12:49"
+    },
+    {
+      "code": "C15",
+      "kind": "candidate",
+      "index": 14,
+      "name": "Canvaz Studio",
+      "uid": "4ABF1249",
+      "uid_full": "4A:BF:12:49"
+    },
+    {
+      "code": "C16",
+      "kind": "candidate",
+      "index": 15,
+      "name": "Ada Lovelaz",
+      "uid": "340B1249",
+      "uid_full": "34:0B:12:49"
+    },
+    {
+      "code": "C17",
+      "kind": "candidate",
+      "index": 16,
+      "name": "Bill Puertas",
+      "uid": "0D391249",
+      "uid_full": "0D:39:12:49"
+    },
+    {
+      "code": "C18",
+      "kind": "candidate",
+      "index": 17,
+      "name": "Claudio Code",
+      "uid": "3C4E1249",
+      "uid_full": "3C:4E:12:49"
+    },
+    {
+      "code": "C19",
+      "kind": "candidate",
+      "index": 18,
+      "name": "Mark Zucarberg",
+      "uid": "7B5BB7DB",
+      "uid_full": "7B:5B:B7:DB"
+    },
+    {
+      "code": "C20",
+      "kind": "candidate",
+      "index": 19,
+      "name": "Marisa Mayo",
+      "uid": "AC53B7DB",
+      "uid_full": "AC:53:B7:DB"
+    },
+    {
+      "code": "C21",
+      "kind": "candidate",
+      "index": 20,
+      "name": "Lovablito",
+      "uid": "C1A6B5DB",
+      "uid_full": "C1:A6:B5:DB"
+    },
+    {
+      "code": "C22",
+      "kind": "candidate",
+      "index": 21,
+      "name": "Jeff Pezos",
+      "uid": "63609ABB",
+      "uid_full": "63:60:9A:BB"
+    },
+    {
+      "code": "C23",
+      "kind": "candidate",
+      "index": 22,
+      "name": "Oprah Winfrei",
+      "uid": "F4565FCB",
+      "uid_full": "F4:56:5F:CB"
+    },
+    {
+      "code": "C24",
+      "kind": "candidate",
+      "index": 23,
+      "name": "Copiloto Excelente",
+      "uid": "E26762CB",
+      "uid_full": "E2:67:62:CB"
+    },
+    {
+      "code": "I01",
+      "kind": "occupation",
+      "index": 0,
+      "name": "Ingeniería mecánica",
+      "uid": "5E61B4DB",
+      "uid_full": "5E:61:B4:DB"
+    },
+    {
+      "code": "I02",
+      "kind": "occupation",
+      "index": 1,
+      "name": "Diseño de productos",
+      "uid": "EBD660CB",
+      "uid_full": "EB:D6:60:CB"
+    },
+    {
+      "code": "I03",
+      "kind": "occupation",
+      "index": 2,
+      "name": "Fotografía de contenido",
+      "uid": "2CF060CB",
+      "uid_full": "2C:F0:60:CB"
+    },
+    {
+      "code": "I04",
+      "kind": "occupation",
+      "index": 3,
+      "name": "Ventas",
+      "uid": "34B31149",
+      "uid_full": "34:B3:11:49"
+    },
+    {
+      "code": "I05",
+      "kind": "occupation",
+      "index": 4,
+      "name": "Diseño gráfico",
+      "uid": "66BF1149",
+      "uid_full": "66:BF:11:49"
+    },
+    {
+      "code": "I06",
+      "kind": "occupation",
+      "index": 5,
+      "name": "Desarrollo de software",
+      "uid": "28D01149",
+      "uid_full": "28:D0:11:49"
+    },
+    {
+      "code": "I07",
+      "kind": "occupation",
+      "index": 6,
+      "name": "Desarrollo web",
+      "uid": "84AA1249",
+      "uid_full": "84:AA:12:49"
+    },
+    {
+      "code": "I08",
+      "kind": "occupation",
+      "index": 7,
+      "name": "Análisis financiero",
+      "uid": "624A60CB",
+      "uid_full": "62:4A:60:CB"
+    },
+    {
+      "code": "M01",
+      "kind": "mystery",
+      "index": 0,
+      "name": "N.º 01 · Ronda de inversión",
+      "uid": "3BB01149",
+      "uid_full": "3B:B0:11:49"
+    },
+    {
+      "code": "M02",
+      "kind": "mystery",
+      "index": 1,
+      "name": "N.º 02 · Clientes piden trato humano",
+      "uid": "1A6061CB",
+      "uid_full": "1A:60:61:CB"
+    },
+    {
+      "code": "M03",
+      "kind": "mystery",
+      "index": 2,
+      "name": "N.º 03 · Nueva herramienta de IA",
+      "uid": "1DD51149",
+      "uid_full": "1D:D5:11:49"
+    },
+    {
+      "code": "M04",
+      "kind": "mystery",
+      "index": 3,
+      "name": "N.º 04 · Error viral",
+      "uid": "6DB09ABB",
+      "uid_full": "6D:B0:9A:BB"
+    },
+    {
+      "code": "M05",
+      "kind": "mystery",
+      "index": 4,
+      "name": "N.º 05 · Auditoría de calidad",
+      "uid": "36AEB4DB",
+      "uid_full": "36:AE:B4:DB"
+    },
+    {
+      "code": "M06",
+      "kind": "mystery",
+      "index": 5,
+      "name": "N.º 06 · ¡Se cayó el server!",
+      "uid": "4975B7DB",
+      "uid_full": "49:75:B7:DB"
+    },
+    {
+      "code": "M07",
+      "kind": "mystery",
+      "index": 6,
+      "name": "N.º 07 · Pitch exitoso",
+      "uid": "4AC7ABBB",
+      "uid_full": "4A:C7:AB:BB"
+    },
+    {
+      "code": "M08",
+      "kind": "mystery",
+      "index": 7,
+      "name": "N.º 08 · Expansión internacional",
+      "uid": "0BDA61CB",
+      "uid_full": "0B:DA:61:CB"
+    },
+    {
+      "code": "M09",
+      "kind": "mystery",
+      "index": 8,
+      "name": "N.º 09 · Práctica profesional",
+      "uid": "536EB7DB",
+      "uid_full": "53:6E:B7:DB"
+    },
+    {
+      "code": "M10",
+      "kind": "mystery",
+      "index": 9,
+      "name": "N.º 10 · Headhunting directo",
+      "uid": "2DE761CB",
+      "uid_full": "2D:E7:61:CB"
+    },
+    {
+      "code": "M11",
+      "kind": "mystery",
+      "index": 10,
+      "name": "N.º 11 · Capacitación interna",
+      "uid": "0E4CB8DB",
+      "uid_full": "0E:4C:B8:DB"
+    },
+    {
+      "code": "M12",
+      "kind": "mystery",
+      "index": 11,
+      "name": "N.º 12 · Fuga de talento",
+      "uid": "0064B7DB",
+      "uid_full": "00:64:B7:DB"
+    },
+    {
+      "code": "M13",
+      "kind": "mystery",
+      "index": 12,
+      "name": "N.º 13 · Reestructuración",
+      "uid": "ECBBB7DB",
+      "uid_full": "EC:BB:B7:DB"
+    },
+    {
+      "code": "M14",
+      "kind": "mystery",
+      "index": 13,
+      "name": "N.º 14 · Trabajo remoto",
+      "uid": "23F61149",
+      "uid_full": "23:F6:11:49"
+    },
+    {
+      "code": "M15",
+      "kind": "mystery",
+      "index": 14,
+      "name": "N.º 15 · Dato OIT #1",
+      "uid": "39D21149",
+      "uid_full": "39:D2:11:49"
+    },
+    {
+      "code": "M16",
+      "kind": "mystery",
+      "index": 15,
+      "name": "N.º 16 · Dato OIT #2",
+      "uid": "3073B7DB",
+      "uid_full": "30:73:B7:DB"
+    },
+    {
+      "code": "M17",
+      "kind": "mystery",
+      "index": 16,
+      "name": "N.º 17 · Dato OIT #3",
+      "uid": "F674B8DB",
+      "uid_full": "F6:74:B8:DB"
+    },
+    {
+      "code": "M18",
+      "kind": "mystery",
+      "index": 17,
+      "name": "N.º 18 · Dato OIT #4",
+      "uid": "36E0B7DB",
+      "uid_full": "36:E0:B7:DB"
+    }
+  ]
+}
